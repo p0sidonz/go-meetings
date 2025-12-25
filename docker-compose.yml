@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: go-meetings
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "10000-10100:10000-10100/udp"
+    environment:
+      - NODE_ENV=production
+      - ANNOUNCED_IP=auto
+      # - PORT=3000

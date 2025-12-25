@@ -1,0 +1,8 @@
+node_modules
+.git
+*.key
+*.cert
+.DS_Store
+Dockerfile
+docker-compose.yml
+README.md
