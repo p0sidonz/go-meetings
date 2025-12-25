@@ -31,11 +31,14 @@ joinBtn.addEventListener('click', () => {
   
   if (!roomId || !name) return alert('Please enter Room ID and Name');
   
-  socket.emit('join-room', { roomId, name }, (response) => {
+  socket.emit('join-room', { roomId, name }, async (response) => {
     if (response.joined) {
       enterRoom(roomId, response.isAdmin);
-      initMediasoup();
-      // If we got peer list in response (not currently implemented in callback but could be)
+      await initMediasoup();
+      
+      if (response.peers) {
+          await handlePeersAndConsumers(response.peers);
+      }
     } else if (response.waitingForApproval) {
       showWaiting();
     }
@@ -46,15 +49,14 @@ socket.on('room-joined', async (data) => {
   enterRoom(data.roomId, data.isAdmin);
   // Initialize Mediasoup
   await initMediasoup();
-  // We can update peers, and also we might want to start consuming existing producers?
-  // For simplicity, we assume new-producer events handle it, or we iterate (not implemented fully for existing)
-  // Actually, let's ask for existing producers if we want to be robust, but for now relies on new-producer
-  // Better: peers list should probably include 'audioProducerId' if they are producing.
-  // For this prototype, we rely on 'new-producer' which works if logic is robust or if we join before others speak.
-  updatePeers(data.peers);
+  await handlePeersAndConsumers(data.peers);
+});
+
+async function handlePeersAndConsumers(peers) {
+  updatePeers(peers);
   
   // Consume existing producers
-  for (const peer of data.peers) {
+  for (const peer of peers) {
       if (peer.id === socket.id) continue;
       if (peer.producers && peer.producers.length > 0) {
           for (const producer of peer.producers) {
@@ -66,7 +68,7 @@ socket.on('room-joined', async (data) => {
           }
       }
   }
-});
+}
 
 socket.on('new-producer', async (data) => {
     // Someone started producing audio or video
@@ -85,6 +87,20 @@ socket.on('consumer-closed', ({ consumerId }) => {
         consumer.close();
         audioConsumers.delete(consumerId);
     }
+    if (videoConsumers.has(consumerId)) {
+        const consumer = videoConsumers.get(consumerId);
+        consumer.close();
+        videoConsumers.delete(consumerId);
+        
+        // Remove video element from DOM
+        const videoEl = document.getElementById(`share-${consumerId}`);
+        if (videoEl) videoEl.remove();
+    }
+});
+
+socket.on('room-closed', ({ reason }) => {
+    alert(`Meeting ended: ${reason}`);
+    window.location.reload();
 });
 
 socket.on('join-request', (data) => {
@@ -101,7 +117,17 @@ socket.on('new-peer', (data) => {
 
 socket.on('peer-left', (data) => {
   const el = document.getElementById(`peer-${data.id}`);
-  if (el) el.remove();
+  if (el) {
+      el.classList.add('left');
+      const timeDiv = el.querySelector('.peer-time');
+      if (timeDiv) {
+          const leaveTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          timeDiv.innerText = `Left at ${leaveTime}`;
+      }
+      
+      // Move to bottom of list? Optional, but good for active users visibility
+      // participantsContainer.appendChild(el); 
+  }
 });
 
 socket.on('subtitle', async (data) => {
@@ -581,9 +607,30 @@ function enterRoom(roomId, isAdmin) {
   if (isAdmin) {
       // Show Share Button
       document.getElementById('share-btn').classList.remove('hidden');
-      // maybe show pending requests if they exist?
+      
+      // Show Admin Controls
+      const adminControls = document.getElementById('admin-controls');
+      if(adminControls) {
+          adminControls.classList.remove('hidden');
+          adminControls.style.display = 'flex'; // override hidden class
+          
+          const toggle = document.getElementById('auto-approve-toggle');
+          toggle.addEventListener('change', (e) => {
+              const enabled = e.target.checked;
+              socket.emit('toggle-auto-approve', { enabled }, (res) => {
+                  if (res.error) {
+                      alert(res.error);
+                      e.target.checked = !enabled; // revert
+                  } else {
+                      console.log('Auto-approve set to:', res.enabled);
+                  }
+              });
+          });
+      }
   } else {
       document.getElementById('share-btn').classList.add('hidden');
+      const adminControls = document.getElementById('admin-controls');
+      if(adminControls) adminControls.classList.add('hidden');
   }
 }
 
@@ -596,10 +643,34 @@ function addPeerToUI(peer) {
     const div = document.createElement('div');
     div.id = `peer-${peer.id}`;
     div.className = 'peer-item';
+    
+    const initial = peer.name.charAt(0).toUpperCase();
+    const joinedTime = peer.joinedAt ? new Date(peer.joinedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+    
+    // Determine badges
+    let badges = '';
+    if (peer.isAdmin) badges += `<span class="peer-badge admin">Host</span>`;
+    if (peer.id === socket.id) badges += `<span class="peer-badge">You</span>`;
+
     div.innerHTML = `
-        <strong>${peer.name} ${peer.isAdmin ? '<span class="admin-badge">Admin</span>' : ''}</strong>
+        <div class="peer-avatar" style="background-color: ${getColorForName(peer.name)}">${initial}</div>
+        <div class="peer-info">
+            <div class="peer-name">${peer.name}${badges}</div>
+            <div class="peer-time">Joined ${joinedTime}</div>
+        </div>
     `;
     participantsContainer.appendChild(div);
+}
+
+// Consistent colors for avatars based on name
+function getColorForName(name) {
+    const colors = ['#1967d2', '#d93025', '#188038', '#e37400', '#673ab7', '#0097a7', '#c2185b'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
 }
 
 function addJoinRequest(peer) {
@@ -651,8 +722,10 @@ async function toggleShare() {
     if (isSharing) {
         // Stop Sharing
         if (videoProducer) {
+            const producerId = videoProducer.id;
             videoProducer.close();
             videoProducer = null;
+            socket.emit('close-producer', { producerId });
         }
         const localPreview = document.getElementById('local-share-preview');
         if (localPreview) localPreview.remove();

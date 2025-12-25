@@ -115,18 +115,29 @@ io.on('connection', (socket) => {
     callback({
         joined: result.joined,
         isAdmin: result.isAdmin,
+        peers: result.peers,
         waitingForApproval: !result.joined && !result.isAdmin
     });
 
     // Handle disconnect
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
-        room.removePeer(socket.id);
-        if (room.peers.size === 0 && room.pendingPeers.size === 0) {
+        
+        const peer = room.peers.get(socket.id);
+        const isAdmin = peer && peer.isAdmin;
+
+        if (isAdmin) {
+            console.log('Admin left, destroying room...');
+            room.destroy();
             rooms.delete(roomId);
-            console.log(`Room ${roomId} deleted (empty)`);
         } else {
-             room.broadcast('peer-left', { id: socket.id });
+            room.removePeer(socket.id);
+            if (room.peers.size === 0 && room.pendingPeers.size === 0) {
+                rooms.delete(roomId);
+                console.log(`Room ${roomId} deleted (empty)`);
+            } else {
+                 room.broadcast('peer-left', { id: socket.id });
+            }
         }
     });
 
@@ -205,6 +216,27 @@ io.on('connection', (socket) => {
         if (consumer) {
             await consumer.resume();
             callback({ success: true });
+        }
+    });
+
+    socket.on('close-producer', ({ producerId }, callback) => {
+        const peer = room.peers.get(socket.id);
+        if (!peer) return;
+        const producer = peer.producers.get(producerId);
+        if (producer) {
+            producer.close(); // This triggers producer.on('close') which triggers consumer.on('producerclose')
+            peer.producers.delete(producerId);
+            if(callback) callback({ success: true });
+        }
+    });
+
+    socket.on('toggle-auto-approve', ({ enabled }, callback) => {
+        const peer = room.peers.get(socket.id);
+        if (peer && peer.isAdmin) {
+            const newState = room.toggleAutoApprove(enabled);
+            callback({ enabled: newState });
+        } else {
+             callback({ error: 'Unauthorized' });
         }
     });
   });

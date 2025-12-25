@@ -12,6 +12,28 @@ class Room {
     
     // Pending Peers (waiting for approval): { socketId: { id, name, ... } }
     this.pendingPeers = new Map();
+    
+    this.autoApprove = false;
+  }
+  
+  toggleAutoApprove(enabled) {
+      this.autoApprove = enabled;
+      console.log(`Room ${this.id} auto-approve set to ${enabled}`);
+      
+      // If enabled, approve all currently pending
+      if (enabled) {
+          for (const socketId of this.pendingPeers.keys()) {
+              this.approvePeer(this.getAdminId(), socketId);
+          }
+      }
+      return this.autoApprove;
+  }
+  
+  getAdminId() {
+      for (const peer of this.peers.values()) {
+          if (peer.isAdmin) return peer.id;
+      }
+      return null;
   }
 
   async createRouter() {
@@ -30,16 +52,30 @@ class Room {
       socket: socket,
       name: name,
       isAdmin: isAdmin,
+      joinedAt: Date.now(),
       transports: new Map(),
       producers: new Map(),
       consumers: new Map(),
       rtpCapabilities: null
     };
 
-    if (isAdmin) {
+    if (isAdmin || this.autoApprove) {
       this.peers.set(socket.id, peer);
-      console.log(`Peer ${name} (${socket.id}) joined room ${this.id} as Admin`);
-      return { joined: true, isAdmin: true };
+      const role = isAdmin ? 'Admin' : 'Participant (Auto-Approved)';
+      console.log(`Peer ${name} (${socket.id}) joined room ${this.id} as ${role}`);
+      
+      // Notify others
+      this.broadcast('new-peer', { 
+          id: socket.id, 
+          name: name,
+          joinedAt: peer.joinedAt
+      });
+      
+      return { 
+          joined: true, 
+          isAdmin: isAdmin,
+          peers: this.getPeerList()
+      };
     } else {
       // If not admin, add to pending
       this.pendingPeers.set(socket.id, peer);
@@ -61,7 +97,23 @@ class Room {
         this.pendingPeers.delete(socketId);
     }
   }
-  
+
+  destroy() {
+      // 1. Notify all peers
+      this.broadcast('room-closed', { reason: 'Host ended the meeting' });
+
+      // 2. Close router
+      if (this.router && !this.router.closed) {
+          this.router.close();
+      }
+
+      // 3. Clear peers
+      this.peers.clear();
+      this.pendingPeers.clear();
+      
+      console.log(`Room ${this.id} destroyed by Admin`);
+  }
+
   approvePeer(adminSocketId, targetSocketId) {
     const admin = this.peers.get(adminSocketId);
     if (!admin || !admin.isAdmin) return false;
@@ -73,6 +125,9 @@ class Room {
     this.pendingPeers.delete(targetSocketId);
     this.peers.set(targetSocketId, targetPeer);
     
+    // Set joinedAt to now (approval time)
+    targetPeer.joinedAt = Date.now();
+    
     console.log(`Peer ${targetPeer.name} (${targetSocketId}) approved by Admin`);
     
     // Notify the user they are accepted
@@ -83,7 +138,11 @@ class Room {
     });
 
     // Notify others
-    this.broadcast('new-peer', { id: targetSocketId, name: targetPeer.name });
+    this.broadcast('new-peer', { 
+        id: targetSocketId, 
+        name: targetPeer.name,
+        joinedAt: targetPeer.joinedAt
+    });
     
     return true;
   }
@@ -118,6 +177,7 @@ class Room {
               id: peer.id, 
               name: peer.name, 
               isAdmin: peer.isAdmin,
+              joinedAt: peer.joinedAt,
               producers: producers
           });
       }
