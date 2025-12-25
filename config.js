@@ -50,7 +50,7 @@ module.exports = {
       listenIps: [
         {
           ip: "0.0.0.0",
-          announcedIp: "192.168.1.6", // Replace with public IP if deploying
+          announcedIp: process.env.ANNOUNCED_IP || "127.0.0.1", // Will be overridden in server.js if not set
         },
       ],
       maxIncomingBitrate: 1500000,

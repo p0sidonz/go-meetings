@@ -31,6 +31,24 @@ app.use(express.static('public'));
 let worker;
 
 async function runMediasoupWorker() {
+  let announcedIp = config.mediasoup.webRtcTransport.listenIps[0].announcedIp;
+  if (announcedIp === '127.0.0.1' && process.env.NODE_ENV === 'production') {
+    try {
+      console.log('Fetching public IP...');
+      const publicIp = await new Promise((resolve, reject) => {
+        https.get('https://api.ipify.org', (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => resolve(data));
+        }).on('error', reject);
+      });
+      console.log('Detected Public IP:', publicIp);
+      config.mediasoup.webRtcTransport.listenIps[0].announcedIp = publicIp;
+    } catch (err) {
+      console.error('Failed to fetch public IP, using fallback:', announcedIp);
+    }
+  }
+
   worker = await mediasoup.createWorker({
     logLevel: config.mediasoup.worker.logLevel,
     logTags: config.mediasoup.worker.logTags,
