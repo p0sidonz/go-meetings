@@ -9,17 +9,28 @@ const app = express();
 let httpsServer;
 
 try {
-  if (fs.existsSync(config.sslKey) && fs.existsSync(config.sslCrt)) {
+  let useHttps = fs.existsSync(config.sslKey) && fs.existsSync(config.sslCrt);
+  
+  // Force HTTP in production (behind proxy like Dokploy/Vercel)
+  if (process.env.NODE_ENV === 'production') {
+    useHttps = false;
+  }
+
+  if (useHttps) {
     const options = {
       key: fs.readFileSync(config.sslKey),
       cert: fs.readFileSync(config.sslCrt),
     };
     httpsServer = https.createServer(options, app);
   } else {
-    throw new Error('Certificates not found');
+    // throw new Error('Certificates not found'); // Removed throw to allow fallback
+    console.log('Using HTTP Server (Production or No Certs)');
+    const http = require('http');
+    httpsServer = http.createServer(app);
   }
 } catch (err) {
-  console.log('SSL certificates not found or invalid, falling back to HTTP (suitable for Vercel/proxies)');
+  console.log('Error setting up server:', err);
+  console.log('Falling back to HTTP');
   const http = require('http');
   httpsServer = http.createServer(app);
 }
