@@ -10,5 +10,5 @@ services:
       - "10000-10100:10000-10100/udp"
     environment:
       - NODE_ENV=production
-      - ANNOUNCED_IP=auto
+      - ANNOUNCED_IP=77.42.73.95
       # - PORT=3000
