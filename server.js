@@ -6,12 +6,24 @@ const mediasoup = require('mediasoup');
 const config = require('./config');
 
 const app = express();
-const options = {
-  key: fs.readFileSync(config.sslKey),
-  cert: fs.readFileSync(config.sslCrt),
-};
+let httpsServer;
 
-const httpsServer = https.createServer(options, app);
+try {
+  if (fs.existsSync(config.sslKey) && fs.existsSync(config.sslCrt)) {
+    const options = {
+      key: fs.readFileSync(config.sslKey),
+      cert: fs.readFileSync(config.sslCrt),
+    };
+    httpsServer = https.createServer(options, app);
+  } else {
+    throw new Error('Certificates not found');
+  }
+} catch (err) {
+  console.log('SSL certificates not found or invalid, falling back to HTTP (suitable for Vercel/proxies)');
+  const http = require('http');
+  httpsServer = http.createServer(app);
+}
+
 const io = socketIo(httpsServer);
 
 app.use(express.static('public'));
@@ -44,8 +56,9 @@ const Room = require('./src/room');
   try {
     await runMediasoupWorker();
     
-    httpsServer.listen(config.listenPort, () => {
-      console.log(`Server running at https://${config.listenIp}:${config.listenPort}`);
+    const port = process.env.PORT || config.listenPort;
+    httpsServer.listen(port, () => {
+      console.log(`Server running at ${port} (https: ${!!httpsServer.key})`);
     });
   } catch (err) {
     console.error(err);
