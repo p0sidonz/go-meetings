@@ -1,0 +1,719 @@
+const socket = io();
+
+// UI Elements
+const loginSection = document.getElementById('login-section');
+const waitingSection = document.getElementById('waiting-section');
+const roomSection = document.getElementById('room-section');
+const roomIdInput = document.getElementById('room-id');
+const usernameInput = document.getElementById('username');
+const joinBtn = document.getElementById('join-btn');
+const participantsContainer = document.getElementById('participants-container');
+const subtitlesArea = document.getElementById('subtitles-area');
+const languageSelect = document.getElementById('language');
+const micBtn = document.getElementById('mic-btn');
+
+let recognition;
+let isMicOn = false;
+let myPeerId;
+let amIAdmin = false;
+
+// Mediasoup
+let device;
+let sendTransport;
+let recvTransport;
+let audioProducer;
+let consumerTransports = [];
+let audioConsumers = new Map(); // consumerId -> consumer
+
+joinBtn.addEventListener('click', () => {
+  const roomId = roomIdInput.value.trim();
+  const name = usernameInput.value.trim();
+  
+  if (!roomId || !name) return alert('Please enter Room ID and Name');
+  
+  socket.emit('join-room', { roomId, name }, (response) => {
+    if (response.joined) {
+      enterRoom(roomId, response.isAdmin);
+      initMediasoup();
+      // If we got peer list in response (not currently implemented in callback but could be)
+    } else if (response.waitingForApproval) {
+      showWaiting();
+    }
+  });
+});
+
+socket.on('room-joined', async (data) => {
+  enterRoom(data.roomId, data.isAdmin);
+  // Initialize Mediasoup
+  await initMediasoup();
+  // We can update peers, and also we might want to start consuming existing producers?
+  // For simplicity, we assume new-producer events handle it, or we iterate (not implemented fully for existing)
+  // Actually, let's ask for existing producers if we want to be robust, but for now relies on new-producer
+  // Better: peers list should probably include 'audioProducerId' if they are producing.
+  // For this prototype, we rely on 'new-producer' which works if logic is robust or if we join before others speak.
+  updatePeers(data.peers);
+  
+  // Consume existing producers
+  for (const peer of data.peers) {
+      if (peer.id === socket.id) continue;
+      if (peer.producers && peer.producers.length > 0) {
+          for (const producer of peer.producers) {
+              if (producer.kind === 'audio') {
+                  await consumeAudio(producer.id, peer.id);
+              } else if (producer.kind === 'video') {
+                  await consumeVideo(producer.id, peer.id);
+              }
+          }
+      }
+  }
+});
+
+socket.on('new-producer', async (data) => {
+    // Someone started producing audio or video
+    if (data.peerId === socket.id) return; // ignore self
+    
+    if (data.kind === 'audio') {
+        await consumeAudio(data.producerId, data.peerId);
+    } else if (data.kind === 'video') {
+         await consumeVideo(data.producerId, data.peerId);
+    }
+});
+
+socket.on('consumer-closed', ({ consumerId }) => {
+    if (audioConsumers.has(consumerId)) {
+        const consumer = audioConsumers.get(consumerId);
+        consumer.close();
+        audioConsumers.delete(consumerId);
+    }
+});
+
+socket.on('join-request', (data) => {
+  if (amIAdmin) {
+    addJoinRequest(data);
+  }
+});
+
+socket.on('new-peer', (data) => {
+  // Simple check to avoid duplicates if necessary, though list refresh is safer
+  // For now, let's just append
+  addPeerToUI(data);
+});
+
+socket.on('peer-left', (data) => {
+  const el = document.getElementById(`peer-${data.id}`);
+  if (el) el.remove();
+});
+
+socket.on('subtitle', async (data) => {
+    const myLang = languageSelect.value.split('-')[0]; // en-US -> en
+    const sourceLang = data.lang.split('-')[0]; // hi-IN -> hi
+    
+    let displayText = data.text;
+    let langLabel = data.lang;
+
+    if (myLang !== sourceLang) {
+        try {
+            const translated = await translateText(data.text, sourceLang, myLang);
+            displayText = translated;
+            langLabel = `${sourceLang}->${myLang}`;
+        } catch (e) {
+            console.error('Translation failed', e);
+        }
+    }
+
+    showSubtitle(data.name, displayText, langLabel);
+    
+    // Speak the translated text (or original if same language, but usually only translated)
+    // The user wants to hear it in THEIR preferred language.
+    if (myLang !== sourceLang) {
+        speakText(displayText, myLang);
+    }
+});
+
+function speakText(text, lang) {
+    if (!window.speechSynthesis) return;
+    
+    // Cancel current speaking to avoid backlog if speaking too fast? 
+    // Or let it queue? Queueing is better for "listening".
+    // window.speechSynthesis.cancel(); 
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    // lang is like 'en', 'es', but voices usually need 'en-US', 'es-ES'
+    // We try to find a voice that starts with the lang code.
+    
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.lang.startsWith(lang));
+    
+    if (voice) {
+        utterance.voice = voice;
+    }
+    
+    // Slightly faster rate for reading
+    utterance.rate = 1.0; 
+    
+    utterance.onstart = () => {
+        console.log('TTS started, pausing recognition...');
+        if (recognition && isMicOn) {
+            recognition.stop(); 
+            // Note: 'end' event on recognition might auto-restart it if we don't handle flags correctly
+            // We'll trust our onend handler to restart IF isMicOn is true.
+            // But we want to avoid immediate restart if we are speaking.
+            window.isSpeaking = true; 
+        }
+    };
+    
+    utterance.onend = () => {
+        console.log('TTS ended, resuming recognition...');
+        window.isSpeaking = false;
+        if (recognition && isMicOn) {
+            try { recognition.start(); } catch(e) {}
+        }
+    };
+
+    window.speechSynthesis.speak(utterance);
+}
+
+async function translateText(text, source, target) {
+    // Using MyMemory API (Free tier, limited usage)
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${source}|${target}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.responseData) {
+        return data.responseData.translatedText;
+    }
+    return text;
+}
+
+micBtn.addEventListener('click', toggleMic);
+
+async function toggleMic() {
+    if (isMicOn) {
+        // Stop Mic (and recognition)
+        if (recognition) recognition.stop();
+        
+        // Close Mediasoup Producer
+        if (audioProducer) {
+            audioProducer.close();
+            audioProducer = null;
+        }
+        
+        isMicOn = false;
+        micBtn.innerHTML = '<span class="material-icons">mic_off</span>';
+        micBtn.classList.remove('active');
+        // micBtn.style.background = '#007bff';
+    } else {
+        // Start Mic (and recognition)
+        startRecognition();
+        
+        // Start Mediasoup Producer
+        try {
+            await produceAudio();
+            isMicOn = true;
+            micBtn.innerHTML = '<span class="material-icons">mic</span>';
+            micBtn.classList.add('active');
+            micBtn.classList.remove('off'); // if we had an off class
+        } catch (e) {
+            console.error('Failed to produce audio:', e);
+            console.error('Failed to produce audio:', e);
+            alert(`Microphone access failed: ${e.message}\nName: ${e.name}\nPlease ensure you have allowed microphone permissions and are using HTTPS.`);
+            recognition.stop(); // Stop STT if audio failed
+        }
+    }
+}
+
+
+function startRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert('Browser does not support Speech API');
+        return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = languageSelect.value;
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    let recognitionTimeout;
+    let lastSentIndex = 0;
+    
+    recognition.onresult = (event) => {
+        // Collect all transcripts from the last sent index up to the current last result
+        let currentBuffer = "";
+        
+        for (let i = lastSentIndex; i < event.results.length; ++i) {
+            if (event.results[i][0].transcript) {
+                 currentBuffer += event.results[i][0].transcript + " ";
+            }
+        }
+        
+        const finalText = currentBuffer.trim();
+        if (!finalText) return;
+
+        console.log('Buffered partial:', finalText);
+        
+        // Clear existing timeout
+        if (recognitionTimeout) clearTimeout(recognitionTimeout);
+        
+        // Set new timeout (silence detection)
+        recognitionTimeout = setTimeout(() => {
+            console.log('Final Buffer sending:', finalText);
+            
+            // Emit to server
+            socket.emit('subtitle', { 
+                roomId: document.getElementById('current-room-id').innerText,
+                text: finalText,
+                lang: recognition.lang
+            });
+            
+            // Show own subtitle
+            showSubtitle('Me', finalText, recognition.lang);
+            
+            // Mark these indices as processed
+            lastSentIndex = event.results.length;
+            
+        }, 1500);
+    };
+
+    recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+    };
+    
+    recognition.onend = () => {
+        // Auto restart if mic is supposed to be on AND we are not speaking via TTS
+        if (isMicOn && !window.isSpeaking) {
+            try {
+                 recognition.start();
+            } catch (e) {
+                console.log('Recognition restart ignored', e);
+            }
+        }
+    };
+
+    recognition.start();
+}
+
+// --- Mediasoup Logic ---
+
+async function initMediasoup() {
+    console.log('initMediasoup starting...');
+    console.log('window.mediasoupClient:', window.mediasoupClient);
+    
+    if (!window.mediasoupClient) {
+        console.error('CRITICAL: mediasoupClient is not defined. Check script loading.');
+        return;
+    }
+
+    try {
+        device = new mediasoupClient.Device();
+        console.log('Mediasoup Device created:', device);
+        
+        // Get Router Capabilities
+        const rtpCapabilities = await new Promise((resolve) => {
+            socket.emit('getRouterRtpCapabilities', {}, (data) => resolve(data));
+        });
+
+        if (!rtpCapabilities) {
+            console.error('No RTP Capabilities');
+            return;
+        }
+        
+        await device.load({ routerRtpCapabilities: rtpCapabilities });
+        console.log('Mediasoup Device loaded');
+        
+        // Create Transports
+        await createSendTransport();
+        await createRecvTransport();
+        
+    } catch (e) {
+        console.error('Mediasoup init error:', e);
+    }
+}
+
+async function createSendTransport() {
+    return new Promise((resolve, reject) => {
+        socket.emit('createWebRtcTransport', {}, async (params) => {
+            if (params.error) {
+                console.error(params.error);
+                return reject(params.error);
+            }
+            
+            try {
+                sendTransport = device.createSendTransport(params);
+                
+                sendTransport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+                     socket.emit('connectTransport', {
+                         transportId: sendTransport.id,
+                         dtlsParameters
+                     }, ({ success }) => {
+                         if (success) callback();
+                         else errback();
+                     });
+                });
+                
+                sendTransport.on('produce', async ({ kind, rtpParameters }, callback, errback) => {
+                    socket.emit('produce', {
+                        transportId: sendTransport.id,
+                        kind,
+                        rtpParameters
+                    }, ({ id }) => {
+                        if (id) callback({ id });
+                        else errback();
+                    });
+                });
+                
+                resolve();
+            } catch (error) {
+                console.error('Error creating send transport', error);
+                reject(error);
+            }
+        });
+    });
+}
+
+async function createRecvTransport() {
+    return new Promise((resolve, reject) => {
+        socket.emit('createWebRtcTransport', {}, async (params) => {
+            if (params.error) {
+                console.error(params.error);
+                return reject(params.error);
+            }
+            
+            try {
+                recvTransport = device.createRecvTransport(params);
+                
+                recvTransport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+                     socket.emit('connectTransport', {
+                         transportId: recvTransport.id,
+                         dtlsParameters
+                     }, ({ success }) => {
+                         if (success) callback();
+                         else errback();
+                     });
+                });
+                resolve();
+            } catch (error) {
+                console.error('Error creating recv transport', error);
+                reject(error);
+            }
+        });
+    });
+}
+
+async function produceAudio() {
+    if (!device.canProduce('audio')) {
+        console.error('Device cannot produce audio');
+        return;
+    }
+    
+    if (!sendTransport) {
+        throw new Error('Send Transport not ready');
+    }
+    
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        console.error('getUserMedia failed:', err);
+        throw err;
+    }
+
+    const track = stream.getAudioTracks()[0];
+    
+    audioProducer = await sendTransport.produce({ track });
+    
+    audioProducer.on('trackended', () => {
+        console.log('Audio track ended');
+        // close producer
+    });
+    
+    audioProducer.on('transportclose', () => {
+        console.log('Audio transport closed');
+    });
+}
+
+async function consumeAudio(producerId, peerId) {
+    if (!device) {
+        console.warn('consumeAudio: device is not initialized');
+        return;
+    }
+    if (!device.loaded) return;
+    
+    socket.emit('consume', {
+        consumerTransportId: recvTransport.id,
+        producerId,
+        rtpCapabilities: device.rtpCapabilities
+    }, async (params) => {
+        if (params.error) return console.error(params.error);
+        
+        const consumer = await recvTransport.consume({
+            id: params.id,
+            producerId: params.producerId,
+            kind: params.kind,
+            rtpParameters: params.rtpParameters
+        });
+        
+        audioConsumers.set(consumer.id, consumer);
+        
+        // Create audio element
+        const { track } = consumer;
+        const stream = new MediaStream([track]);
+        const audio = document.createElement('audio');
+        audio.srcObject = stream;
+        audio.id = `audio-${peerId}`;
+        audio.playsInline = true;
+        audio.autoplay = true;
+        document.body.appendChild(audio);
+        
+        // Resume if needed (server sends paused: true)
+        socket.emit('resume', { consumerId: consumer.id }, () => {
+            console.log('Resumed consumer', consumer.id);
+        });
+    });
+}
+
+async function consumeVideo(producerId, peerId) {
+    if (!device) {
+        console.warn('consumeVideo: device is not initialized');
+        return;
+    }
+    if (!device.loaded) return;
+    
+    socket.emit('consume', {
+        consumerTransportId: recvTransport.id,
+        producerId,
+        rtpCapabilities: device.rtpCapabilities
+    }, async (params) => {
+        if (params.error) return console.error(params.error);
+        
+        const consumer = await recvTransport.consume({
+            id: params.id,
+            producerId: params.producerId,
+            kind: params.kind,
+            rtpParameters: params.rtpParameters
+        });
+        
+        videoConsumers.set(consumer.id, consumer);
+        
+        // Create video element
+        const { track } = consumer;
+        const stream = new MediaStream([track]);
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.id = `share-${consumer.id}`; 
+        video.playsInline = true;
+        video.autoplay = true;
+        video.style.maxWidth = '100%';
+        video.style.border = '2px solid #ccc';
+        video.style.borderRadius = '8px';
+        
+        videoContainer.appendChild(video);
+        
+        // Resume if needed (server sends paused: true)
+        socket.emit('resume', { consumerId: consumer.id }, () => {
+            console.log('Resumed video consumer', consumer.id);
+        });
+        
+        consumer.on('transportclose', () => {
+           video.remove();
+        });
+        
+        consumer.on('producerclose', () => {
+           video.remove(); 
+        });
+    });
+}
+
+function showSubtitle(name, text, lang) {
+    const inner = document.getElementById('subtitles-inner');
+    const area = document.getElementById('subtitles-area');
+    
+    inner.innerText = `${name} [${lang}]: ${text}`;
+    area.style.display = 'block';
+    
+    // Hide after 5 seconds
+    if (window.subtitleTimeout) clearTimeout(window.subtitleTimeout);
+    window.subtitleTimeout = setTimeout(() => {
+        subtitlesArea.style.display = 'none';
+    }, 5000);
+}
+
+function showWaiting() {
+  loginSection.classList.add('hidden');
+  waitingSection.classList.remove('hidden');
+}
+
+function enterRoom(roomId, isAdmin) {
+  loginSection.classList.add('hidden');
+  waitingSection.classList.add('hidden');
+  roomSection.classList.remove('hidden');
+  
+  document.getElementById('current-room-id').innerText = roomId;
+  amIAdmin = isAdmin;
+  document.getElementById('my-role').innerText = isAdmin ? 'Role: HOST (Admin)' : 'Role: Participant';
+  
+  if (isAdmin) {
+      // Show Share Button
+      document.getElementById('share-btn').classList.remove('hidden');
+      // maybe show pending requests if they exist?
+  } else {
+      document.getElementById('share-btn').classList.add('hidden');
+  }
+}
+
+function updatePeers(peersList) {
+    participantsContainer.innerHTML = '';
+    peersList.forEach(peer => addPeerToUI(peer));
+}
+
+function addPeerToUI(peer) {
+    const div = document.createElement('div');
+    div.id = `peer-${peer.id}`;
+    div.className = 'peer-item';
+    div.innerHTML = `
+        <strong>${peer.name} ${peer.isAdmin ? '<span class="admin-badge">Admin</span>' : ''}</strong>
+    `;
+    participantsContainer.appendChild(div);
+}
+
+function addJoinRequest(peer) {
+    const requestsArea = document.getElementById('join-requests-area');
+    if (!requestsArea) return; // Should exist
+
+    const div = document.createElement('div');
+    div.id = `request-${peer.socketId}`;
+    div.style.background = 'white';
+    div.style.color = '#202124';
+    div.style.padding = '16px';
+    div.style.borderRadius = '8px';
+    div.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    div.style.display = 'flex';
+    div.style.flexDirection = 'column';
+    div.style.gap = '10px';
+    div.style.minWidth = '250px';
+    div.style.animation = 'fadeIn 0.3s ease-out';
+
+    div.innerHTML = `
+        <div style="font-weight: 500; font-size: 14px;">Someone wants to join</div>
+        <div style="font-size: 16px; font-weight: bold;">${peer.name}</div>
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+             <!-- Deny button could be added here -->
+             <button onclick="approvePeer('${peer.socketId}')" style="flex: 1; padding: 8px; border: none; background: transparent; color: #0b57d0; font-weight: 500; cursor: pointer; border-radius: 4px; text-align: right;">Admit</button>
+        </div>
+    `;
+    
+    // Add simple hover effect for button via inline style hack or just leave simple
+    const btn = div.querySelector('button');
+    btn.onmouseover = () => btn.style.background = '#f0f4fc';
+    btn.onmouseout = () => btn.style.background = 'transparent';
+
+    requestsArea.appendChild(div);
+    
+    // Play a sound? (Optional)
+}
+
+const shareBtn = document.getElementById('share-btn');
+const videoContainer = document.getElementById('video-container');
+
+let isSharing = false;
+let videoProducer;
+let videoConsumers = new Map(); // consumerId -> consumer (for video)
+
+shareBtn.addEventListener('click', toggleShare);
+
+async function toggleShare() {
+    if (isSharing) {
+        // Stop Sharing
+        if (videoProducer) {
+            videoProducer.close();
+            videoProducer = null;
+        }
+        const localPreview = document.getElementById('local-share-preview');
+        if (localPreview) localPreview.remove();
+        
+        isSharing = false;
+        shareBtn.innerHTML = '<span class="material-icons">present_to_all</span>';
+        shareBtn.classList.remove('active');
+        document.getElementById('sharing-badge').classList.add('hidden');
+    } else {
+        // Start Sharing
+        try {
+            await produceVideo();
+            isSharing = true;
+            shareBtn.innerHTML = '<span class="material-icons" style="color:#8ab4f8">stop_screen_share</span>';
+            shareBtn.classList.add('active');
+            document.getElementById('sharing-badge').classList.remove('hidden');
+        } catch (e) {
+            console.error('Failed to share screen:', e);
+            alert(`Screen share failed: ${e.message}`);
+        }
+    }
+}
+
+async function produceVideo() {
+    if (!device.canProduce('video')) {
+        console.error('Device cannot produce video');
+        return;
+    }
+    
+    if (!sendTransport) {
+        throw new Error('Send Transport not ready');
+    }
+    
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    } catch (err) {
+        console.error('getDisplayMedia failed:', err);
+        throw err;
+    }
+
+    const track = stream.getVideoTracks()[0];
+    
+    // Handle user clicking "Stop sharing" from browser UI
+    track.onended = () => {
+         if (isSharing) toggleShare(); 
+    };
+    
+    // Encodings for simulcast (optional, but good for screen share quality)
+    // For simplicity, we use simple parameters first
+    videoProducer = await sendTransport.produce({ 
+        track,
+        // appData: { share: true } // could use to distinguish camera vs screen
+    });
+    
+    // Add local preview
+    const video = document.createElement('video');
+    video.srcObject = new MediaStream([track]);
+    video.id = 'local-share-preview';
+    video.playsInline = true;
+    video.autoplay = true;
+    video.muted = true; // IMPORTANT: Mute local preview
+    video.style.maxWidth = '100%';
+    video.style.border = '2px solid #8ab4f8'; // Blue border for self
+    video.style.borderRadius = '8px';
+    
+    videoContainer.appendChild(video);
+
+    track.onended = () => {
+         if (isSharing) toggleShare(); 
+         video.remove();
+    };
+    
+    videoProducer.on('trackended', () => {
+        console.log('Video track ended');
+    });
+    
+    videoProducer.on('transportclose', () => {
+        console.log('Video transport closed');
+    });
+}
+
+window.approvePeer = (targetSocketId) => {
+    socket.emit('approve-peer', { targetSocketId }, (res) => {
+        if (res.success) {
+            const el = document.getElementById(`request-${targetSocketId}`);
+            if (el) el.remove();
+        }
+    });
+};
