@@ -341,24 +341,40 @@ async function createSendTransport() {
             try {
                 sendTransport = device.createSendTransport(params);
                 
+                sendTransport.on('connectionstatechange', (state) => {
+                    console.log(`[SendTransport] Connection state changed: ${state}`);
+                });
+                
                 sendTransport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+                     console.log('[SendTransport] Connecting...');
                      socket.emit('connectTransport', {
                          transportId: sendTransport.id,
                          dtlsParameters
                      }, ({ success }) => {
-                         if (success) callback();
-                         else errback();
+                         if (success) {
+                             console.log('[SendTransport] Connected server-side');
+                             callback();
+                         } else {
+                             console.error('[SendTransport] Server failed to connect');
+                             errback();
+                         }
                      });
                 });
                 
                 sendTransport.on('produce', async ({ kind, rtpParameters }, callback, errback) => {
+                    console.log(`[SendTransport] Producing ${kind}...`);
                     socket.emit('produce', {
                         transportId: sendTransport.id,
                         kind,
                         rtpParameters
                     }, ({ id }) => {
-                        if (id) callback({ id });
-                        else errback();
+                        if (id) {
+                            console.log(`[SendTransport] Producer created: ${id}`);
+                            callback({ id });
+                        } else {
+                            console.error('[SendTransport] Failed to create producer');
+                            errback();
+                        }
                     });
                 });
                 
@@ -381,14 +397,24 @@ async function createRecvTransport() {
             
             try {
                 recvTransport = device.createRecvTransport(params);
+
+                recvTransport.on('connectionstatechange', (state) => {
+                    console.log(`[RecvTransport] Connection state changed: ${state}`);
+                });
                 
                 recvTransport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+                     console.log('[RecvTransport] Connecting...');
                      socket.emit('connectTransport', {
                          transportId: recvTransport.id,
                          dtlsParameters
                      }, ({ success }) => {
-                         if (success) callback();
-                         else errback();
+                         if (success) {
+                             console.log('[RecvTransport] Connected server-side');
+                             callback();
+                         } else {
+                            console.error('[RecvTransport] Server failed to connect');
+                             errback();
+                         }
                      });
                 });
                 resolve();
