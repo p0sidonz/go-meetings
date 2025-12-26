@@ -16,6 +16,7 @@ let recognition;
 let isMicOn = false;
 let myPeerId;
 let amIAdmin = false;
+let translatedVoiceOnly = false; // If true, mute original audio and only use TTS
 
 // Mediasoup
 let device;
@@ -538,6 +539,8 @@ async function consumeAudio(producerId, peerId) {
         audio.id = `audio-${peerId}`;
         audio.playsInline = true;
         audio.autoplay = true;
+        // Mute if user prefers translated TTS only
+        audio.muted = translatedVoiceOnly;
         document.body.appendChild(audio);
         
         // Resume if needed (server sends paused: true)
@@ -846,4 +849,27 @@ window.approvePeer = (targetSocketId) => {
             if (el) el.remove();
         }
     });
+};
+
+// Toggle audio mode: original voice vs translated TTS only
+window.toggleAudioMode = () => {
+    translatedVoiceOnly = !translatedVoiceOnly;
+    
+    const btn = document.getElementById('audio-mode-btn');
+    if (btn) {
+        if (translatedVoiceOnly) {
+            btn.classList.add('active');
+            btn.title = 'Translated voice only (click to hear original)';
+        } else {
+            btn.classList.remove('active');
+            btn.title = 'Original voice (click for translated only)';
+        }
+    }
+    
+    // Update all existing remote audio elements
+    document.querySelectorAll('audio[id^="audio-"]').forEach(audio => {
+        audio.muted = translatedVoiceOnly;
+    });
+    
+    console.log('Audio mode:', translatedVoiceOnly ? 'Translated TTS only' : 'Original voice');
 };
