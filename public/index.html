@@ -315,6 +315,121 @@
       .hidden {
         display: none !important;
       }
+
+      /* Mobile Responsiveness */
+      @media (max-width: 768px) {
+        /* Room Section Layout */
+        #room-section {
+          display: flex;
+          flex-direction: column;
+        }
+
+        /* Mobile Header for Room Info */
+        #mobile-header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          padding: 12px 16px;
+          background-color: var(--control-bar-bg);
+          border-bottom: 1px solid #3c4043;
+          color: #e8eaed;
+          font-size: 14px;
+        }
+
+        #mobile-header .room-info-mobile {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        /* Hide desktop room info in footer on mobile */
+        #controls-footer .room-info-desktop {
+          display: none !important;
+        }
+
+        /* Controls Footer - Mobile */
+        #controls-footer {
+          height: 70px;
+          padding: 0 10px;
+          gap: 10px;
+          justify-content: center;
+        }
+
+        /* Smaller control buttons on mobile */
+        .control-btn {
+          width: 44px;
+          height: 44px;
+        }
+
+        .control-btn.danger {
+          width: 52px !important;
+        }
+
+        .material-icons {
+          font-size: 20px;
+        }
+
+        /* Main area adjustments */
+        #main-area {
+          flex: 1;
+          min-height: 0;
+        }
+
+        #video-grid {
+          padding: 10px;
+          gap: 10px;
+        }
+
+        /* Full-width sidebar on mobile */
+        #sidebar {
+          width: 100%;
+          border-left: none;
+        }
+
+        /* Subtitles closer to bottom on mobile */
+        #subtitles-area {
+          bottom: 80px;
+        }
+
+        #subtitles-inner {
+          font-size: 1rem;
+          padding: 6px 12px;
+          max-width: 90%;
+        }
+
+        /* Login section mobile */
+        #login-section input,
+        #login-section select {
+          width: 100%;
+          max-width: 280px;
+        }
+
+        /* Join requests area mobile */
+        #join-requests-area {
+          left: 10px;
+          right: 10px;
+          top: auto;
+          bottom: 90px;
+        }
+
+        #join-requests-area > div {
+          min-width: auto !important;
+        }
+
+        /* Sharing indicator mobile */
+        .sharing-indicator {
+          top: 10px;
+          left: 10px;
+          font-size: 12px;
+          padding: 6px 10px;
+        }
+      }
+
+      /* Hide mobile header on desktop */
+      #mobile-header {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -342,6 +457,15 @@
 
     <!-- Room Section -->
     <div id="room-section" class="hidden">
+      <!-- Mobile Header (visible only on mobile) -->
+      <div id="mobile-header">
+        <div class="room-info-mobile">
+          <span id="current-room-id-mobile"></span>
+          <span style="color: #9aa0a6">|</span>
+          <span id="my-role-mobile" style="color: #9aa0a6"></span>
+        </div>
+      </div>
+
       <div id="main-area">
         <div class="sharing-indicator hidden" id="sharing-badge">
           <span class="material-icons">screen_share</span>
@@ -411,6 +535,7 @@
       <!-- Footer Controls -->
       <div id="controls-footer">
         <div
+          class="room-info-desktop"
           style="
             flex: 1;
             display: flex;

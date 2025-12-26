@@ -25,6 +25,25 @@ let audioProducer;
 let consumerTransports = [];
 let audioConsumers = new Map(); // consumerId -> consumer
 
+// Preload speech synthesis voices for reliable TTS
+let cachedVoices = [];
+function preloadVoices() {
+    return new Promise((resolve) => {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+            cachedVoices = voices;
+            resolve(voices);
+        } else {
+            speechSynthesis.onvoiceschanged = () => {
+                cachedVoices = window.speechSynthesis.getVoices();
+                resolve(cachedVoices);
+            };
+        }
+    });
+}
+// Initialize voices on load
+preloadVoices();
+
 joinBtn.addEventListener('click', () => {
   const roomId = roomIdInput.value.trim();
   const name = usernameInput.value.trim();
@@ -131,8 +150,9 @@ socket.on('peer-left', (data) => {
 });
 
 socket.on('subtitle', async (data) => {
-    const myLang = languageSelect.value.split('-')[0]; // en-US -> en
-    const sourceLang = data.lang.split('-')[0]; // hi-IN -> hi
+    const myLangFull = languageSelect.value;  // e.g., 'en-US'
+    const myLang = myLangFull.split('-')[0];  // e.g., 'en'
+    const sourceLang = data.lang.split('-')[0];  // e.g., 'hi'
     
     let displayText = data.text;
     let langLabel = data.lang;
@@ -149,42 +169,45 @@ socket.on('subtitle', async (data) => {
 
     showSubtitle(data.name, displayText, langLabel);
     
-    // Speak the translated text (or original if same language, but usually only translated)
-    // The user wants to hear it in THEIR preferred language.
-    if (myLang !== sourceLang) {
-        speakText(displayText, myLang);
-    }
+    // Always speak using TTS in the listener's preferred language
+    // Use full language code for better voice matching
+    speakText(displayText, myLangFull);
 });
 
-function speakText(text, lang) {
+function speakText(text, langCode) {
     if (!window.speechSynthesis) return;
     
-    // Cancel current speaking to avoid backlog if speaking too fast? 
-    // Or let it queue? Queueing is better for "listening".
-    // window.speechSynthesis.cancel(); 
-
     const utterance = new SpeechSynthesisUtterance(text);
-    // lang is like 'en', 'es', but voices usually need 'en-US', 'es-ES'
-    // We try to find a voice that starts with the lang code.
     
-    const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.lang.startsWith(lang));
+    // Set the lang property for the utterance (BCP 47 code like 'en-US')
+    utterance.lang = langCode;
+    
+    // Use cached voices or fetch fresh
+    const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
+    
+    // Priority 1: Exact match (e.g., 'en-US' matches 'en-US')
+    let voice = voices.find(v => v.lang === langCode);
+    
+    // Priority 2: Language prefix match (e.g., 'en' matches 'en-GB')
+    if (!voice) {
+        const shortLang = langCode.split('-')[0];
+        voice = voices.find(v => v.lang.startsWith(shortLang));
+    }
     
     if (voice) {
         utterance.voice = voice;
+        console.log(`TTS using voice: ${voice.name} (${voice.lang}) for target: ${langCode}`);
+    } else {
+        console.log(`TTS: No matching voice found for ${langCode}, using browser default`);
     }
     
-    // Slightly faster rate for reading
-    utterance.rate = 1.0; 
+    utterance.rate = 1.0;
     
     utterance.onstart = () => {
         console.log('TTS started, pausing recognition...');
         if (recognition && isMicOn) {
-            recognition.stop(); 
-            // Note: 'end' event on recognition might auto-restart it if we don't handle flags correctly
-            // We'll trust our onend handler to restart IF isMicOn is true.
-            // But we want to avoid immediate restart if we are speaking.
-            window.isSpeaking = true; 
+            recognition.stop();
+            window.isSpeaking = true;
         }
     };
     
@@ -600,9 +623,17 @@ function enterRoom(roomId, isAdmin) {
   waitingSection.classList.add('hidden');
   roomSection.classList.remove('hidden');
   
+  // Desktop footer room info
   document.getElementById('current-room-id').innerText = roomId;
   amIAdmin = isAdmin;
-  document.getElementById('my-role').innerText = isAdmin ? 'Role: HOST (Admin)' : 'Role: Participant';
+  const roleText = isAdmin ? 'Role: HOST (Admin)' : 'Role: Participant';
+  document.getElementById('my-role').innerText = roleText;
+  
+  // Mobile header room info
+  const mobileRoomId = document.getElementById('current-room-id-mobile');
+  const mobileRole = document.getElementById('my-role-mobile');
+  if (mobileRoomId) mobileRoomId.innerText = roomId;
+  if (mobileRole) mobileRole.innerText = roleText;
   
   if (isAdmin) {
       // Show Share Button
