@@ -241,14 +241,33 @@ function speakText(text, langCode) {
 }
 
 async function translateText(text, source, target) {
-    // Using MyMemory API (Free tier, limited usage)
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${source}|${target}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.responseData) {
-        return data.responseData.translatedText;
+    // Using self-hosted LibreTranslate API
+    const url = 'https://translate-api.iankit.me/translate';
+    
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                q: text,
+                source: source,
+                target: target,
+                api_key: '6fe28963-c1e1-451b-91a4-985e835bc69c'
+            })
+        });
+        
+        const data = await res.json();
+        if (data.translatedText) {
+            return data.translatedText;
+        }
+        console.warn('Translation response missing translatedText:', data);
+        return text;
+    } catch (err) {
+        console.error('Translation error:', err);
+        return text;
     }
-    return text;
 }
 
 micBtn.addEventListener('click', toggleMic);
@@ -339,7 +358,7 @@ function startRecognition() {
             // Mark these indices as processed
             lastSentIndex = event.results.length;
             
-        }, 1500);
+        }, 800); // Reduced from 1500ms for faster response
     };
 
     recognition.onerror = (event) => {
