@@ -73,31 +73,48 @@ socket.on('room-joined', async (data) => {
 });
 
 async function handlePeersAndConsumers(peers) {
+  console.log('handlePeersAndConsumers called with peers:', peers);
   updatePeers(peers);
   
   // Consume existing producers
   for (const peer of peers) {
-      if (peer.id === socket.id) continue;
+      if (peer.id === socket.id) {
+          console.log('Skipping self:', peer.id);
+          continue;
+      }
+      console.log(`Processing peer ${peer.name} (${peer.id}), producers:`, peer.producers);
       if (peer.producers && peer.producers.length > 0) {
           for (const producer of peer.producers) {
               if (producer.kind === 'audio') {
+                  console.log(`Consuming audio producer ${producer.id} from ${peer.name}`);
                   await consumeAudio(producer.id, peer.id);
               } else if (producer.kind === 'video') {
+                  console.log(`Consuming video producer ${producer.id} from ${peer.name}`);
                   await consumeVideo(producer.id, peer.id);
               }
           }
+      } else {
+          console.log(`Peer ${peer.name} has no producers`);
       }
   }
+  console.log('handlePeersAndConsumers completed');
 }
 
 socket.on('new-producer', async (data) => {
     // Someone started producing audio or video
-    if (data.peerId === socket.id) return; // ignore self
+    console.log('new-producer event received:', data);
+    
+    if (data.peerId === socket.id) {
+        console.log('Ignoring own producer');
+        return;
+    }
     
     if (data.kind === 'audio') {
+        console.log(`Attempting to consume audio from peer ${data.peerId}`);
         await consumeAudio(data.producerId, data.peerId);
     } else if (data.kind === 'video') {
-         await consumeVideo(data.producerId, data.peerId);
+        console.log(`Attempting to consume video from peer ${data.peerId}`);
+        await consumeVideo(data.producerId, data.peerId);
     }
 });
 
@@ -509,44 +526,68 @@ async function produceAudio() {
 }
 
 async function consumeAudio(producerId, peerId) {
+    console.log(`consumeAudio called: producerId=${producerId}, peerId=${peerId}`);
+    
     if (!device) {
         console.warn('consumeAudio: device is not initialized');
         return;
     }
-    if (!device.loaded) return;
+    if (!device.loaded) {
+        console.warn('consumeAudio: device not loaded yet');
+        return;
+    }
+    if (!recvTransport) {
+        console.warn('consumeAudio: recvTransport not ready');
+        return;
+    }
+    
+    console.log(`consumeAudio: requesting consume for producer ${producerId}`);
     
     socket.emit('consume', {
         consumerTransportId: recvTransport.id,
         producerId,
         rtpCapabilities: device.rtpCapabilities
     }, async (params) => {
-        if (params.error) return console.error(params.error);
+        console.log('consume response:', params);
         
-        const consumer = await recvTransport.consume({
-            id: params.id,
-            producerId: params.producerId,
-            kind: params.kind,
-            rtpParameters: params.rtpParameters
-        });
+        if (params.error) {
+            console.error('consume error:', params.error);
+            return;
+        }
         
-        audioConsumers.set(consumer.id, consumer);
-        
-        // Create audio element
-        const { track } = consumer;
-        const stream = new MediaStream([track]);
-        const audio = document.createElement('audio');
-        audio.srcObject = stream;
-        audio.id = `audio-${peerId}`;
-        audio.playsInline = true;
-        audio.autoplay = true;
-        // Mute if user prefers translated TTS only
-        audio.muted = translatedVoiceOnly;
-        document.body.appendChild(audio);
-        
-        // Resume if needed (server sends paused: true)
-        socket.emit('resume', { consumerId: consumer.id }, () => {
-            console.log('Resumed consumer', consumer.id);
-        });
+        try {
+            const consumer = await recvTransport.consume({
+                id: params.id,
+                producerId: params.producerId,
+                kind: params.kind,
+                rtpParameters: params.rtpParameters
+            });
+            
+            console.log(`Consumer created: ${consumer.id} for peer ${peerId}`);
+            
+            audioConsumers.set(consumer.id, consumer);
+            
+            // Create audio element
+            const { track } = consumer;
+            const stream = new MediaStream([track]);
+            const audio = document.createElement('audio');
+            audio.srcObject = stream;
+            audio.id = `audio-${peerId}`;
+            audio.playsInline = true;
+            audio.autoplay = true;
+            // Mute if user prefers translated TTS only
+            audio.muted = translatedVoiceOnly;
+            document.body.appendChild(audio);
+            
+            console.log(`Audio element created for peer ${peerId}, muted: ${audio.muted}`);
+            
+            // Resume if needed (server sends paused: true)
+            socket.emit('resume', { consumerId: consumer.id }, () => {
+                console.log('Resumed consumer', consumer.id);
+            });
+        } catch (err) {
+            console.error('Error creating consumer:', err);
+        }
     });
 }
 
