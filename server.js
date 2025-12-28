@@ -97,7 +97,7 @@ const Room = require('./src/room');
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
 
-  socket.on('join-room', async ({ roomId, name }, callback) => {
+  socket.on('join-room', async ({ roomId, name, lang }, callback) => {
     let room = rooms.get(roomId);
     
     // Create room if not exists
@@ -108,13 +108,15 @@ io.on('connection', (socket) => {
       console.log(`Created new room: ${roomId}`);
     }
 
-    // Add peer
-    const result = room.addPeer(socket, name);
+    // Add peer with their selected language
+    const result = room.addPeer(socket, name, lang || 'en-US');
     
     // Callback with status
     callback({
         joined: result.joined,
         isAdmin: result.isAdmin,
+        hostId: result.hostId,
+        hostLang: result.hostLang,
         peers: result.peers,
         waitingForApproval: !result.joined && !result.isAdmin
     });
@@ -149,12 +151,17 @@ io.on('connection', (socket) => {
 
     // Subtitle relay
     socket.on('subtitle', (data) => {
+        const isHost = room.isHost(socket.id);
+        const hostInfo = room.getHostInfo();
+        
         // Broadcast to everyone else in the room
         room.broadcast('subtitle', {
             id: socket.id,
             name: name, // from closure
             text: data.text,
-            lang: data.lang
+            lang: data.lang,
+            isHost: isHost,
+            hostLang: hostInfo.hostLang
         }, socket.id);
     });
     

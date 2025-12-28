@@ -18,6 +18,14 @@ let myPeerId;
 let amIAdmin = false;
 let translatedVoiceOnly = false; // If true, mute original audio and only use TTS
 
+// Host tracking for translation
+let hostPeerId = null;
+let hostLang = 'en-US';
+
+// Transcript entries storage
+let transcriptEntries = [];
+let transcriptVisible = false;
+
 // Mediasoup
 let device;
 let sendTransport;
@@ -48,11 +56,16 @@ preloadVoices();
 joinBtn.addEventListener('click', () => {
   const roomId = roomIdInput.value.trim();
   const name = usernameInput.value.trim();
+  const lang = languageSelect.value;
   
   if (!roomId || !name) return alert('Please enter Room ID and Name');
   
-  socket.emit('join-room', { roomId, name }, async (response) => {
+  socket.emit('join-room', { roomId, name, lang }, async (response) => {
     if (response.joined) {
+      // Store host info
+      hostPeerId = response.hostId;
+      hostLang = response.hostLang || 'en-US';
+      
       enterRoom(roomId, response.isAdmin);
       await initMediasoup();
       
@@ -66,6 +79,10 @@ joinBtn.addEventListener('click', () => {
 });
 
 socket.on('room-joined', async (data) => {
+  // Store host info
+  hostPeerId = data.hostId;
+  hostLang = data.hostLang || 'en-US';
+  
   enterRoom(data.roomId, data.isAdmin);
   // Initialize Mediasoup
   await initMediasoup();
@@ -174,22 +191,41 @@ socket.on('subtitle', async (data) => {
     
     let displayText = data.text;
     let langLabel = data.lang;
+    let wasTranslated = false;
 
-    if (myLang !== sourceLang) {
-        try {
-            const translated = await translateText(data.text, sourceLang, myLang);
-            displayText = translated;
-            langLabel = `${sourceLang}->${myLang}`;
-        } catch (e) {
-            console.error('Translation failed', e);
+    // Only translate if this is from the HOST
+    if (data.isHost) {
+        // Show speaking indicator
+        updateHostSpeakingIndicator('speaking');
+        
+        // Only translate and TTS if translate mode is active
+        if (translatedVoiceOnly) {
+            // Translate host's speech to listener's selected language
+            if (myLang !== sourceLang) {
+                updateHostSpeakingIndicator('translating');
+                try {
+                    const translated = await translateText(data.text, sourceLang, myLang);
+                    displayText = translated;
+                    langLabel = `${sourceLang}→${myLang}`;
+                    wasTranslated = true;
+                } catch (e) {
+                    console.error('Translation failed', e);
+                }
+            }
+            
+            // TTS for host speech (only when translate mode is active)
+            speakText(displayText, myLangFull);
         }
+        // If translatedVoiceOnly is false, user hears original voice via Mediasoup
+        
+        // Reset indicator after a delay
+        setTimeout(() => updateHostSpeakingIndicator('idle'), 3000);
     }
+    // Participant voice: no translation, no TTS - just native display
+    // Audio plays via Mediasoup (native voice)
 
-    showSubtitle(data.name, displayText, langLabel);
-    
-    // Always speak using TTS in the listener's preferred language
-    // Use full language code for better voice matching
-    speakText(displayText, myLangFull);
+    // Add to scrollable transcript
+    addTranscriptEntry(data.name, displayText, langLabel, data.isHost, wasTranslated);
 });
 
 function speakText(text, langCode) {
@@ -345,6 +381,12 @@ function startRecognition() {
         recognitionTimeout = setTimeout(() => {
             console.log('Final Buffer sending:', finalText);
             
+            // If I am host, update speaking indicator
+            if (amIAdmin) {
+                updateHostSpeakingIndicator('speaking');
+                setTimeout(() => updateHostSpeakingIndicator('idle'), 3000);
+            }
+            
             // Emit to server
             socket.emit('subtitle', { 
                 roomId: document.getElementById('current-room-id').innerText,
@@ -352,8 +394,8 @@ function startRecognition() {
                 lang: recognition.lang
             });
             
-            // Show own subtitle
-            showSubtitle('Me', finalText, recognition.lang);
+            // Add own speech to transcript (no translation for self)
+            addTranscriptEntry('Me', finalText, recognition.lang, amIAdmin, false);
             
             // Mark these indices as processed
             lastSentIndex = event.results.length;
@@ -676,6 +718,110 @@ function showSubtitle(name, text, lang) {
     }, 5000);
 }
 
+// Traffic Signal Speaking Indicator
+function updateHostSpeakingIndicator(state) {
+    const indicator = document.getElementById('host-speaking-indicator');
+    if (!indicator) return;
+    
+    const light = indicator.querySelector('.signal-light');
+    const label = indicator.querySelector('.signal-label');
+    
+    if (!light || !label) return;
+    
+    // Remove all state classes
+    light.classList.remove('idle', 'speaking', 'translating');
+    
+    switch (state) {
+        case 'speaking':
+            light.classList.add('speaking');
+            label.textContent = 'Host Speaking';
+            break;
+        case 'translating':
+            light.classList.add('translating');
+            label.textContent = 'Translating...';
+            break;
+        case 'idle':
+        default:
+            light.classList.add('idle');
+            label.textContent = 'Host Idle';
+            break;
+    }
+}
+
+// Add entry to scrollable transcript
+function addTranscriptEntry(name, text, langLabel, isHost, wasTranslated) {
+    const container = document.getElementById('transcript-container');
+    const entries = document.getElementById('transcript-entries');
+    
+    if (!container || !entries) return;
+    
+    // Show transcript container if it has content
+    container.classList.add('visible');
+    transcriptVisible = true;
+    
+    // Update button state
+    const btn = document.getElementById('transcript-btn');
+    if (btn) btn.classList.add('active');
+    
+    // Create timestamp
+    const now = new Date();
+    const timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    // Create entry element
+    const entry = document.createElement('div');
+    entry.className = 'transcript-entry';
+    
+    // Build badge HTML
+    let badgeHtml = '';
+    if (isHost) {
+        badgeHtml = wasTranslated 
+            ? '<span class="transcript-badge translated">Translated</span>'
+            : '<span class="transcript-badge">Host</span>';
+    }
+    
+    entry.innerHTML = `
+        <div class="transcript-meta">
+            <span class="transcript-name ${isHost ? 'host' : ''}">${name}</span>
+            <span class="transcript-time">${timestamp}</span>
+            ${badgeHtml}
+        </div>
+        <div class="transcript-text">${text}</div>
+    `;
+    
+    entries.appendChild(entry);
+    
+    // Store in array
+    transcriptEntries.push({
+        name,
+        text,
+        langLabel,
+        isHost,
+        wasTranslated,
+        timestamp
+    });
+    
+    // Auto-scroll to bottom
+    entries.scrollTop = entries.scrollHeight;
+}
+
+// Toggle transcript visibility
+window.toggleTranscript = function() {
+    const container = document.getElementById('transcript-container');
+    const btn = document.getElementById('transcript-btn');
+    
+    if (!container) return;
+    
+    transcriptVisible = !transcriptVisible;
+    
+    if (transcriptVisible) {
+        container.classList.add('visible');
+        if (btn) btn.classList.add('active');
+    } else {
+        container.classList.remove('visible');
+        if (btn) btn.classList.remove('active');
+    }
+};
+
 function showWaiting() {
   loginSection.classList.add('hidden');
   waitingSection.classList.remove('hidden');
@@ -698,9 +844,18 @@ function enterRoom(roomId, isAdmin) {
   if (mobileRoomId) mobileRoomId.innerText = roomId;
   if (mobileRole) mobileRole.innerText = roleText;
   
+  // Show host speaking indicator for all users
+  const hostIndicator = document.getElementById('host-speaking-indicator');
+  if (hostIndicator) {
+      hostIndicator.classList.remove('hidden');
+  }
+  
   if (isAdmin) {
       // Show Share Button
       document.getElementById('share-btn').classList.remove('hidden');
+      
+      // Show Mic Button for host
+      document.getElementById('mic-btn').classList.remove('hidden');
       
       // Show Admin Controls
       const adminControls = document.getElementById('admin-controls');
@@ -723,6 +878,11 @@ function enterRoom(roomId, isAdmin) {
       }
   } else {
       document.getElementById('share-btn').classList.add('hidden');
+      
+      // Hide mic button for guests (participants can't speak for now)
+      // Functionality still exists if we want to enable it later
+      document.getElementById('mic-btn').classList.add('hidden');
+      
       const adminControls = document.getElementById('admin-controls');
       if(adminControls) adminControls.classList.add('hidden');
   }

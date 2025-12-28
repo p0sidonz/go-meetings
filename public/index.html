@@ -2,7 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Global Meeting</title>
     <!-- Google Fonts -->
     <link
@@ -26,16 +28,32 @@
         --icon-color: #e8eaed;
       }
 
-      body {
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html, body {
         margin: 0;
         padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+
+      body {
         font-family: "Google Sans", "Roboto", sans-serif;
         background-color: var(--bg-color);
         color: var(--text-color);
-        height: 100vh;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        touch-action: manipulation;
+        -webkit-overflow-scrolling: touch;
       }
 
       /* Login / Waiting Screens */
@@ -48,6 +66,185 @@
         justify-content: center;
         padding: 20px;
         text-align: center;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Animated background orbs */
+      #login-section::before,
+      #login-section::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.4;
+        animation: float 6s ease-in-out infinite;
+      }
+
+      #login-section::before {
+        width: 300px;
+        height: 300px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        top: -100px;
+        right: -100px;
+      }
+
+      #login-section::after {
+        width: 250px;
+        height: 250px;
+        background: linear-gradient(135deg, #474448 0%, #f5576c 100%);
+        bottom: -80px;
+        left: -80px;
+        animation-delay: -3s;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(5deg); }
+      }
+
+      /* Login Card */
+      .login-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        padding: 40px 36px;
+        width: 100%;
+        max-width: 380px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .login-logo {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      }
+
+      .login-logo .material-icons {
+        font-size: 32px;
+        color: white;
+      }
+
+      .login-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 8px;
+        letter-spacing: -0.5px;
+      }
+
+      .login-subtitle {
+        font-size: 0.9rem;
+        color: #9aa0a6;
+        margin-bottom: 32px;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+        text-align: left;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 0.8rem;
+        color: #9aa0a6;
+        margin-bottom: 6px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .login-card input,
+      .login-card select {
+        width: 100%;
+        padding: 14px 16px;
+        margin: 0;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        font-size: 16px;
+        outline: none;
+        transition: all 0.3s ease;
+      }
+
+      .login-card input::placeholder {
+        color: #5f6368;
+      }
+
+      .login-card input:focus,
+      .login-card select:focus {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+      }
+
+      .login-card select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239aa0a6' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 16px center;
+        padding-right: 40px;
+      }
+
+      .login-card select option {
+        background: #202124;
+        color: white;
+        padding: 12px;
+      }
+
+      button#join-btn {
+        width: 100%;
+        margin-top: 24px;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 1rem;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      button#join-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+      }
+
+      button#join-btn:active {
+        transform: translateY(0);
+      }
+
+      /* Waiting Section */
+      #waiting-section .login-card {
+        text-align: center;
+      }
+
+      .waiting-spinner {
+        width: 48px;
+        height: 48px;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
 
       h1,
@@ -56,43 +253,28 @@
         margin-bottom: 20px;
       }
 
-      input,
-      select {
-        padding: 12px 16px;
-        margin: 8px 0;
-        border-radius: 4px;
-        border: 1px solid #5f6368;
-        background: transparent;
-        color: white;
-        font-size: 16px;
-        width: 300px;
-        max-width: 100%;
-        outline: none;
-      }
-
-      input:focus,
-      select:focus {
-        border-color: var(--blue-color);
-      }
-
-      button#join-btn {
-        margin-top: 20px;
-        padding: 12px 24px;
-        background-color: var(--blue-color);
-        color: #202124;
-        font-weight: 500;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        width: auto;
-      }
-
       /* Room Layout */
       #room-section {
         flex: 1;
         display: flex;
         flex-direction: column;
         height: 100%;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        position: relative;
+      }
+
+      /* Subtle animated gradient overlay */
+      #room-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(ellipse at top right, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+                    radial-gradient(ellipse at bottom left, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
       }
 
       #main-area {
@@ -100,6 +282,7 @@
         display: flex;
         position: relative;
         overflow: hidden;
+        z-index: 1;
       }
 
       #video-grid {
@@ -122,20 +305,22 @@
         object-fit: contain;
       }
 
-      /* Sidebar (Participants) */
+      /* Sidebar (Participants) - Glassmorphism */
       #sidebar {
-        width: 300px;
-        background: #fff;
-        color: #202124;
-        border-left: 1px solid #dadce0;
-        display: none; /* hidden by default */
+        width: 320px;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        color: #e8eaed;
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        display: none;
         flex-direction: column;
         position: absolute;
         right: 0;
         top: 0;
         bottom: 0;
         z-index: 10;
-        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+        box-shadow: -5px 0 30px rgba(0, 0, 0, 0.3);
       }
 
       #sidebar.open {
@@ -143,11 +328,19 @@
       }
 
       .sidebar-header {
-        padding: 16px;
+        padding: 16px 20px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-bottom: 1px solid #dadce0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .sidebar-header h3 {
+        color: #fff;
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 500;
       }
 
       #participants-container {
@@ -157,21 +350,21 @@
       }
 
       .peer-item {
-        padding: 12px;
+        padding: 12px 16px;
         display: flex;
         align-items: center;
         gap: 12px;
-        border-bottom: 1px solid #f1f3f4;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         transition: background 0.2s;
       }
       
       .peer-item:hover {
-          background-color: #f8f9fa;
+        background: rgba(255, 255, 255, 0.08);
       }
       
       .peer-item.left {
-          opacity: 0.5;
-          order: 100; /* Flexbox trick to push to bottom if container is flex-col */
+        opacity: 0.5;
+        order: 100;
       }
       
       .peer-avatar {
@@ -197,12 +390,18 @@
       }
       
       .peer-name {
-          font-weight: 500;
-          color: #202124;
-          font-size: 14px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+        font-weight: 500;
+        color: #fff;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      .peer-time {
+        font-size: 11px;
+        color: #9aa0a6;
+        margin-top: 2px;
       }
       
       .peer-time {
@@ -226,68 +425,84 @@
           color: #c5221f;
       }
 
-      /* Controls Footer */
+      /* Controls Footer - Glassmorphism */
       #controls-footer {
         height: 80px;
-        background-color: var(--control-bar-bg);
+        background: rgba(32, 33, 36, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 16px;
         padding: 0 20px;
-        box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.3);
         z-index: 20;
+        position: relative;
       }
 
       .control-btn {
         width: 50px;
         height: 50px;
         border-radius: 50%;
-        background-color: var(--secondary-bg);
-        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         color: var(--icon-color);
-        transition: background 0.2s;
+        transition: all 0.2s ease;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
       }
 
       .control-btn:hover {
-        background-color: #4d5155;
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.05);
       }
 
       .control-btn.active {
-        background-color: var(--blue-color);
-        color: #202124;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
       }
 
       .control-btn.danger {
-        background-color: var(--red-color);
+        background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%);
         color: white;
+        border-color: transparent;
+        box-shadow: 0 4px 15px rgba(234, 67, 53, 0.4);
       }
 
       .control-btn.off {
-        background-color: var(--red-color);
+        background: rgba(234, 67, 53, 0.3);
         color: white;
+        border-color: rgba(234, 67, 53, 0.5);
       }
 
       .material-icons {
         font-size: 24px;
       }
 
-      /* Sharing Badge */
+      /* Sharing Badge - Glassmorphism */
       .sharing-indicator {
         position: absolute;
         top: 20px;
         left: 20px;
-        background: rgba(32, 33, 36, 0.8);
-        padding: 8px 12px;
-        border-radius: 4px;
+        background: rgba(102, 126, 234, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        padding: 10px 16px;
+        border-radius: 24px;
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 14px;
+        font-size: 13px;
+        color: #8ab4f8;
+        font-weight: 500;
       }
 
       /* Captions */
@@ -312,16 +527,184 @@
         max-width: 80%;
       }
 
+      /* Traffic Signal Speaking Indicator - Glassmorphism */
+      #host-speaking-indicator {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 12px 20px;
+        border-radius: 30px;
+        z-index: 100;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      .signal-light {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background-color: #5f6368;
+        transition: all 0.3s ease;
+      }
+
+      .signal-light.idle {
+        background-color: #5f6368;
+        box-shadow: none;
+      }
+
+      .signal-light.speaking {
+        background-color: #34a853;
+        box-shadow: 0 0 12px #34a853, 0 0 24px rgba(52, 168, 83, 0.5);
+        animation: pulse-green 1s infinite;
+      }
+
+      .signal-light.translating {
+        background-color: #fbbc04;
+        box-shadow: 0 0 12px #fbbc04, 0 0 24px rgba(251, 188, 4, 0.5);
+        animation: pulse-yellow 0.5s infinite;
+      }
+
+      @keyframes pulse-green {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.1); }
+      }
+
+      @keyframes pulse-yellow {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+      }
+
+      .signal-label {
+        color: #fff;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+      }
+
+      /* Scrollable Transcript Container - Glassmorphism */
+      #transcript-container {
+        position: absolute;
+        bottom: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        max-width: 700px;
+        max-height: 220px;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        overflow: hidden;
+        z-index: 50;
+        display: none;
+        flex-direction: column;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      #transcript-container.visible {
+        display: flex;
+      }
+
+      #transcript-header {
+        padding: 12px 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #transcript-header span {
+        font-size: 13px;
+        color: #fff;
+        font-weight: 500;
+      }
+
+      #transcript-entries {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 16px;
+        scroll-behavior: smooth;
+      }
+
+      .transcript-entry {
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(95, 99, 104, 0.3);
+      }
+
+      .transcript-entry:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
+      .transcript-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .transcript-name {
+        font-weight: 500;
+        color: #8ab4f8;
+        font-size: 13px;
+      }
+
+      .transcript-name.host {
+        color: #f28b82;
+      }
+
+      .transcript-time {
+        font-size: 11px;
+        color: #9aa0a6;
+      }
+
+      .transcript-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(138, 180, 248, 0.2);
+        color: #8ab4f8;
+      }
+
+      .transcript-badge.translated {
+        background: rgba(251, 188, 4, 0.2);
+        color: #fbbc04;
+      }
+
+      .transcript-text {
+        color: #e8eaed;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
       .hidden {
         display: none !important;
       }
 
       /* Mobile Responsiveness */
       @media (max-width: 768px) {
+        /* Ensure full height on mobile */
+        html, body {
+          height: 100%;
+          height: -webkit-fill-available;
+        }
+
         /* Room Section Layout */
         #room-section {
           display: flex;
           flex-direction: column;
+          height: 100%;
+          position: relative;
         }
 
         /* Mobile Header for Room Info */
@@ -329,18 +712,22 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
-          padding: 12px 16px;
+          gap: 8px;
+          padding: 10px 12px;
           background-color: var(--control-bar-bg);
           border-bottom: 1px solid #3c4043;
           color: #e8eaed;
-          font-size: 14px;
+          font-size: 12px;
+          flex-shrink: 0;
+          min-height: 44px;
         }
 
         #mobile-header .room-info-mobile {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
+          flex-wrap: wrap;
+          justify-content: center;
         }
 
         /* Hide desktop room info in footer on mobile */
@@ -350,20 +737,30 @@
 
         /* Controls Footer - Mobile */
         #controls-footer {
-          height: 70px;
-          padding: 0 10px;
-          gap: 10px;
+          height: 60px;
+          min-height: 60px;
+          padding: 8px 8px;
+          padding-bottom: max(8px, env(safe-area-inset-bottom));
+          gap: 8px;
           justify-content: center;
+          flex-shrink: 0;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
         }
 
         /* Smaller control buttons on mobile */
         .control-btn {
-          width: 44px;
-          height: 44px;
+          width: 42px;
+          height: 42px;
+          min-width: 42px;
+          min-height: 42px;
+          flex-shrink: 0;
         }
 
         .control-btn.danger {
-          width: 52px !important;
+          width: 50px !important;
+          min-width: 50px !important;
         }
 
         .material-icons {
@@ -374,55 +771,166 @@
         #main-area {
           flex: 1;
           min-height: 0;
+          overflow: hidden;
+          position: relative;
         }
 
         #video-grid {
-          padding: 10px;
-          gap: 10px;
+          padding: 8px;
+          gap: 8px;
+          height: 100%;
+          overflow-y: auto;
         }
 
         /* Full-width sidebar on mobile */
         #sidebar {
           width: 100%;
           border-left: none;
+          max-height: 60vh;
+        }
+
+        /* Host speaking indicator mobile */
+        #host-speaking-indicator {
+          top: 8px;
+          padding: 6px 12px;
+          gap: 6px;
+          border-radius: 16px;
+          max-width: 90%;
+        }
+
+        .signal-light {
+          width: 12px;
+          height: 12px;
+        }
+
+        .signal-label {
+          font-size: 11px;
+        }
+
+        /* Transcript container mobile */
+        #transcript-container {
+          width: 94%;
+          max-width: none;
+          bottom: 70px;
+          max-height: 150px;
+          border-radius: 8px;
+        }
+
+        #transcript-header {
+          padding: 8px 12px;
+        }
+
+        #transcript-header span {
+          font-size: 12px;
+        }
+
+        #transcript-entries {
+          padding: 8px 12px;
+        }
+
+        .transcript-entry {
+          margin-bottom: 8px;
+          padding-bottom: 6px;
+        }
+
+        .transcript-name {
+          font-size: 12px;
+        }
+
+        .transcript-time {
+          font-size: 10px;
+        }
+
+        .transcript-badge {
+          font-size: 9px;
+          padding: 2px 4px;
+        }
+
+        .transcript-text {
+          font-size: 13px;
         }
 
         /* Subtitles closer to bottom on mobile */
         #subtitles-area {
-          bottom: 80px;
+          bottom: 70px;
         }
 
         #subtitles-inner {
-          font-size: 1rem;
-          padding: 6px 12px;
-          max-width: 90%;
+          font-size: 0.9rem;
+          padding: 6px 10px;
+          max-width: 92%;
         }
 
         /* Login section mobile */
+        #login-section {
+          padding: 16px;
+          justify-content: flex-start;
+          padding-top: 15vh;
+        }
+
+        #login-section h1 {
+          font-size: 1.5rem;
+          margin-bottom: 24px;
+        }
+
         #login-section input,
         #login-section select {
           width: 100%;
-          max-width: 280px;
+          max-width: 300px;
+          padding: 14px 16px;
+          font-size: 16px; /* Prevents iOS zoom on focus */
+        }
+
+        #login-section button#join-btn {
+          width: 100%;
+          max-width: 300px;
+          padding: 14px 24px;
+          font-size: 16px;
         }
 
         /* Join requests area mobile */
         #join-requests-area {
-          left: 10px;
-          right: 10px;
-          top: auto;
-          bottom: 90px;
+          left: 8px;
+          right: 8px;
+          top: 50px;
+          bottom: auto;
         }
 
         #join-requests-area > div {
           min-width: auto !important;
+          width: 100%;
         }
 
         /* Sharing indicator mobile */
         .sharing-indicator {
-          top: 10px;
-          left: 10px;
-          font-size: 12px;
-          padding: 6px 10px;
+          top: 8px;
+          left: 8px;
+          font-size: 11px;
+          padding: 5px 8px;
+          gap: 4px;
+        }
+
+        .sharing-indicator .material-icons {
+          font-size: 16px;
+        }
+      }
+
+      /* Extra small devices */
+      @media (max-width: 360px) {
+        .control-btn {
+          width: 38px;
+          height: 38px;
+          min-width: 38px;
+          min-height: 38px;
+        }
+
+        #controls-footer {
+          gap: 6px;
+          padding: 6px;
+        }
+
+        .material-icons {
+          font-size: 18px;
         }
       }
 
@@ -435,24 +943,44 @@
   <body>
     <!-- Login Section -->
     <div id="login-section">
-      <h1>Global Meeting</h1>
-      <input type="text" id="room-id" placeholder="Room ID" value="room1" />
-      <input type="text" id="username" placeholder="Your Name" value="Guest" />
-      <select id="language" style="background-color: #202124; color: white">
-        <option value="en-US">English</option>
-        <option value="es-ES">Spanish</option>
-        <option value="fr-FR">French</option>
-        <option value="hi-IN">Hindi</option>
-        <option value="ru-RU">Russian</option>
-        <option value="zh-CN">Chinese</option>
-      </select>
-      <button id="join-btn">Join</button>
+      <div class="login-card">
+      
+        <h1 class="login-title">Global Meeting</h1>
+        <p class="login-subtitle">Real-time translation for everyone</p>
+        
+        <div class="form-group">
+          <label>Room ID</label>
+          <input type="text" id="room-id" placeholder="Enter room code" value="room1" />
+        </div>
+        
+        <div class="form-group">
+          <label>Your Name</label>
+          <input type="text" id="username" placeholder="Enter your name" value="Guest" />
+        </div>
+        
+        <div class="form-group">
+          <label>Your Language</label>
+          <select id="language">
+            <option value="en-US">🇺🇸 English</option>
+            <option value="es-ES">🇪🇸 Spanish</option>
+            <option value="fr-FR">🇫🇷 French</option>
+            <option value="hi-IN">🇮🇳 Hindi</option>
+            <option value="ru-RU">🇷🇺 Russian</option>
+            <option value="zh-CN">🇨🇳 Chinese</option>
+          </select>
+        </div>
+        
+        <button id="join-btn">Join Meeting</button>
+      </div>
     </div>
 
     <!-- Waiting Section -->
     <div id="waiting-section" class="hidden">
-      <h2>Asking to join...</h2>
-      <p>You'll join the call when someone lets you in.</p>
+      <div class="login-card">
+        <div class="waiting-spinner"></div>
+        <h2 style="color: #fff; margin-bottom: 8px;">Asking to join...</h2>
+        <p style="color: #9aa0a6; margin: 0;">You'll join the call when the host lets you in.</p>
+      </div>
     </div>
 
     <!-- Room Section -->
@@ -529,8 +1057,23 @@
         </div>
       </div>
 
-      <!-- Subtitles -->
-      <div id="subtitles-area"><div id="subtitles-inner"></div></div>
+      <!-- Subtitles (legacy, hidden) -->
+      <div id="subtitles-area" style="display:none"><div id="subtitles-inner"></div></div>
+
+      <!-- Host Speaking Indicator -->
+      <div id="host-speaking-indicator" class="hidden">
+        <div class="signal-light idle"></div>
+        <span class="signal-label">Host Idle</span>
+      </div>
+
+      <!-- Scrollable Transcript Container -->
+      <div id="transcript-container">
+        <div id="transcript-header">
+          <span>Live Transcript</span>
+          <button onclick="toggleTranscript()" style="background:none;border:none;color:#9aa0a6;cursor:pointer;font-size:18px;">&times;</button>
+        </div>
+        <div id="transcript-entries"></div>
+      </div>
 
       <!-- Footer Controls -->
       <div id="controls-footer">
@@ -568,6 +1111,16 @@
           onclick="toggleSidebar()"
         >
           <span class="material-icons">people</span>
+        </button>
+
+        <!-- Transcript Toggle Button -->
+        <button
+          id="transcript-btn"
+          class="control-btn"
+          title="Toggle Transcript"
+          onclick="toggleTranscript()"
+        >
+          <span class="material-icons">closed_caption</span>
         </button>
 
         <!-- Audio Mode Toggle Button -->

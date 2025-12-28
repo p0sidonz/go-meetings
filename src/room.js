@@ -7,13 +7,17 @@ class Room {
     this.io = io;
     this.router = null;
     
-    // Peers: { socketId: { id, name, isAdmin, transports, producers, consumers, rtpCapabilities } }
+    // Peers: { socketId: { id, name, isAdmin, transports, producers, consumers, rtpCapabilities, lang } }
     this.peers = new Map();
     
     // Pending Peers (waiting for approval): { socketId: { id, name, ... } }
     this.pendingPeers = new Map();
     
     this.autoApprove = false;
+    
+    // Host tracking for translation
+    this.hostId = null;
+    this.hostLang = 'en-US'; // Default host language
   }
   
   toggleAutoApprove(enabled) {
@@ -43,7 +47,7 @@ class Room {
     return this.router;
   }
 
-  addPeer(socket, name) {
+  addPeer(socket, name, lang = 'en-US') {
     // If first peer, they are Admin
     const isAdmin = this.peers.size === 0;
     
@@ -52,6 +56,7 @@ class Room {
       socket: socket,
       name: name,
       isAdmin: isAdmin,
+      lang: lang, // User's selected language
       joinedAt: Date.now(),
       transports: new Map(),
       producers: new Map(),
@@ -64,16 +69,26 @@ class Room {
       const role = isAdmin ? 'Admin' : 'Participant (Auto-Approved)';
       console.log(`Peer ${name} (${socket.id}) joined room ${this.id} as ${role}`);
       
+      // If this is the host (admin), store host info
+      if (isAdmin) {
+        this.hostId = socket.id;
+        this.hostLang = lang;
+        console.log(`Host language set to: ${lang}`);
+      }
+      
       // Notify others
       this.broadcast('new-peer', { 
           id: socket.id, 
           name: name,
+          isAdmin: isAdmin,
           joinedAt: peer.joinedAt
       });
       
       return { 
           joined: true, 
           isAdmin: isAdmin,
+          hostId: this.hostId,
+          hostLang: this.hostLang,
           peers: this.getPeerList()
       };
     } else {
@@ -134,6 +149,8 @@ class Room {
     targetPeer.socket.emit('room-joined', { 
         roomId: this.id, 
         isAdmin: false,
+        hostId: this.hostId,
+        hostLang: this.hostLang,
         peers: this.getPeerList()
     });
 
@@ -177,11 +194,23 @@ class Room {
               id: peer.id, 
               name: peer.name, 
               isAdmin: peer.isAdmin,
+              lang: peer.lang,
               joinedAt: peer.joinedAt,
               producers: producers
           });
       }
       return list;
+  }
+  
+  getHostInfo() {
+      return {
+          hostId: this.hostId,
+          hostLang: this.hostLang
+      };
+  }
+  
+  isHost(socketId) {
+      return socketId === this.hostId;
   }
 
   // --- Mediasoup Methods ---
