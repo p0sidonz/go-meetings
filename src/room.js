@@ -18,6 +18,34 @@ class Room {
     // Host tracking for translation
     this.hostId = null;
     this.hostLang = 'en-US'; // Default host language
+    
+    // Track active translation sessions for host feedback
+    this.activeTranslations = new Map(); // socketId -> { name, status, timestamp }
+  }
+  
+  // Translation tracking methods
+  updateTranslationStatus(socketId, name, status) {
+    if (status === 'done' || status === 'idle') {
+      this.activeTranslations.delete(socketId);
+    } else {
+      this.activeTranslations.set(socketId, { 
+        name, 
+        status, 
+        timestamp: Date.now() 
+      });
+    }
+    return this.getActiveTranslationSummary();
+  }
+  
+  getActiveTranslationSummary() {
+    const summary = {
+      count: this.activeTranslations.size,
+      clients: []
+    };
+    for (const [id, data] of this.activeTranslations) {
+      summary.clients.push({ id, ...data });
+    }
+    return summary;
   }
   
   toggleAutoApprove(enabled) {

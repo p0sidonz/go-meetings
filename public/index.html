@@ -571,6 +571,12 @@
         animation: pulse-yellow 0.5s infinite;
       }
 
+      .signal-light.playing {
+        background-color: #8ab4f8;
+        box-shadow: 0 0 12px #8ab4f8, 0 0 24px rgba(138, 180, 248, 0.5);
+        animation: pulse-blue 0.8s infinite;
+      }
+
       @keyframes pulse-green {
         0%, 100% { opacity: 1; transform: scale(1); }
         50% { opacity: 0.7; transform: scale(1.1); }
@@ -581,11 +587,177 @@
         50% { opacity: 0.8; transform: scale(1.1); }
       }
 
+      @keyframes pulse-blue {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.15); }
+      }
+
       .signal-label {
         color: #fff;
         font-size: 13px;
         font-weight: 500;
         letter-spacing: 0.3px;
+      }
+
+      /* Enhanced indicator when active */
+      #host-speaking-indicator.active {
+        background: linear-gradient(135deg, rgba(52, 168, 83, 0.15) 0%, rgba(102, 126, 234, 0.15) 100%);
+        border-color: rgba(52, 168, 83, 0.3);
+      }
+
+      /* Host Feedback Panel - Shows translation activity (host only) */
+      #host-feedback-panel {
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        padding: 12px 16px;
+        min-width: 200px;
+        max-width: 300px;
+        z-index: 99;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        display: none;
+      }
+
+      #host-feedback-panel.visible {
+        display: block;
+        opacity: 1;
+      }
+
+      #host-feedback-panel.hidden {
+        opacity: 0;
+        display: none;
+      }
+
+      .feedback-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #8ab4f8;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .feedback-header .material-icons {
+        font-size: 16px;
+      }
+
+      .translation-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 13px;
+      }
+
+      .client-name {
+        color: #e8eaed;
+        font-weight: 500;
+      }
+
+      .client-status {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        background: rgba(251, 188, 4, 0.2);
+        color: #fbbc04;
+      }
+
+      .client-status.playing {
+        background: rgba(138, 180, 248, 0.2);
+        color: #8ab4f8;
+      }
+
+      /* Client Audio Playing Indicator */
+      #client-audio-indicator {
+        position: absolute;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(138, 180, 248, 0.15);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(138, 180, 248, 0.3);
+        padding: 10px 20px;
+        border-radius: 30px;
+        display: none;
+        align-items: center;
+        gap: 12px;
+        z-index: 60;
+        color: #8ab4f8;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      #client-audio-indicator.visible {
+        display: flex;
+        animation: fadeIn 0.3s ease;
+      }
+
+      #client-audio-indicator.hidden {
+        display: none;
+      }
+
+      .audio-wave {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        height: 20px;
+      }
+
+      .audio-wave::before,
+      .audio-wave::after,
+      .audio-wave span {
+        content: '';
+        width: 3px;
+        height: 100%;
+        background: #8ab4f8;
+        border-radius: 3px;
+        animation: wave 0.5s ease-in-out infinite;
+      }
+
+      .audio-wave::before {
+        animation-delay: 0s;
+        height: 60%;
+      }
+
+      .audio-wave span {
+        animation-delay: 0.1s;
+        height: 100%;
+      }
+
+      .audio-wave::after {
+        animation-delay: 0.2s;
+        height: 40%;
+      }
+
+      @keyframes wave {
+        0%, 100% { transform: scaleY(0.5); }
+        50% { transform: scaleY(1); }
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+
+      /* Audio Mode Button Active State */
+      #audio-mode-btn.active {
+        background: linear-gradient(135deg, #fbbc04 0%, #f9ab00 100%) !important;
+        color: #202124 !important;
+        box-shadow: 0 4px 20px rgba(251, 188, 4, 0.5);
       }
 
       /* Scrollable Transcript Container - Glassmorphism */
@@ -1063,7 +1235,22 @@
       <!-- Host Speaking Indicator -->
       <div id="host-speaking-indicator" class="hidden">
         <div class="signal-light idle"></div>
-        <span class="signal-label">Host Idle</span>
+        <span class="signal-label">Listening</span>
+      </div>
+
+      <!-- Host Feedback Panel (only visible to host when clients are translating) -->
+      <div id="host-feedback-panel" class="hidden">
+        <div class="feedback-header">
+          <span class="material-icons">hearing</span>
+          <span>Live Translations</span>
+        </div>
+        <div id="active-translations"></div>
+      </div>
+
+      <!-- Client Audio Playing Indicator -->
+      <div id="client-audio-indicator" class="hidden">
+        <div class="audio-wave"><span></span></div>
+        <span>Playing translated audio...</span>
       </div>
 
       <!-- Scrollable Transcript Container -->

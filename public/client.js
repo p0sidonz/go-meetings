@@ -26,6 +26,10 @@ let hostLang = 'en-US';
 let transcriptEntries = [];
 let transcriptVisible = false;
 
+// Status tracking for smooth UX
+let hostSpeakingTimeout = null;
+let lastHostStatus = 'idle';
+
 // Mediasoup
 let device;
 let sendTransport;
@@ -195,7 +199,7 @@ socket.on('subtitle', async (data) => {
 
     // Only translate if this is from the HOST
     if (data.isHost) {
-        // Show speaking indicator
+        // Show speaking indicator (already set by host-status, but ensure it's there)
         updateHostSpeakingIndicator('speaking');
         
         // Only translate and TTS if translate mode is active
@@ -203,6 +207,10 @@ socket.on('subtitle', async (data) => {
             // Translate host's speech to listener's selected language
             if (myLang !== sourceLang) {
                 updateHostSpeakingIndicator('translating');
+                
+                // Send status to server for host feedback
+                socket.emit('translation-status', { status: 'translating' });
+                
                 try {
                     const translated = await translateText(data.text, sourceLang, myLang);
                     displayText = translated;
@@ -214,18 +222,34 @@ socket.on('subtitle', async (data) => {
             }
             
             // TTS for host speech (only when translate mode is active)
-            speakText(displayText, myLangFull);
+            speakTextWithFeedback(displayText, myLangFull, wasTranslated);
+        } else {
+            // Not in translation mode, reset after brief speaking indicator
+            clearTimeout(hostSpeakingTimeout);
+            hostSpeakingTimeout = setTimeout(() => updateHostSpeakingIndicator('idle'), 2000);
         }
-        // If translatedVoiceOnly is false, user hears original voice via Mediasoup
-        
-        // Reset indicator after a delay
-        setTimeout(() => updateHostSpeakingIndicator('idle'), 3000);
     }
     // Participant voice: no translation, no TTS - just native display
     // Audio plays via Mediasoup (native voice)
 
     // Add to scrollable transcript
     addTranscriptEntry(data.name, displayText, langLabel, data.isHost, wasTranslated);
+});
+
+// Listen for host status updates (immediate indicator)
+socket.on('host-status', (data) => {
+    if (data.status === 'speaking' && !amIAdmin) {
+        updateHostSpeakingIndicator('speaking');
+        // Clear any existing timeout
+        clearTimeout(hostSpeakingTimeout);
+    }
+});
+
+// Host receives translation activity feedback
+socket.on('translation-activity', (data) => {
+    if (amIAdmin) {
+        updateHostFeedbackPanel(data);
+    }
 });
 
 function speakText(text, langCode) {
@@ -274,6 +298,128 @@ function speakText(text, langCode) {
     };
 
     window.speechSynthesis.speak(utterance);
+}
+
+// Enhanced speakText with feedback to server and visual indicator
+function speakTextWithFeedback(text, langCode, wasTranslated) {
+    if (!window.speechSynthesis) return;
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = langCode;
+    
+    // Use cached voices or fetch fresh
+    const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
+    
+    // Priority 1: Exact match
+    let voice = voices.find(v => v.lang === langCode);
+    
+    // Priority 2: Language prefix match
+    if (!voice) {
+        const shortLang = langCode.split('-')[0];
+        voice = voices.find(v => v.lang.startsWith(shortLang));
+    }
+    
+    if (voice) {
+        utterance.voice = voice;
+    }
+    
+    utterance.rate = 1.0;
+    
+    utterance.onstart = () => {
+        console.log('TTS with feedback started');
+        if (recognition && isMicOn) {
+            recognition.stop();
+            window.isSpeaking = true;
+        }
+        
+        // Show playing indicator for client
+        updateHostSpeakingIndicator('playing');
+        showClientAudioIndicator(true);
+        
+        // Send playing status to server
+        if (wasTranslated) {
+            socket.emit('translation-status', { status: 'playing' });
+        }
+    };
+    
+    utterance.onend = () => {
+        console.log('TTS with feedback ended');
+        window.isSpeaking = false;
+        if (recognition && isMicOn) {
+            try { recognition.start(); } catch(e) {}
+        }
+        
+        // Hide playing indicator
+        updateHostSpeakingIndicator('idle');
+        showClientAudioIndicator(false);
+        
+        // Send done status to server
+        if (wasTranslated) {
+            socket.emit('translation-status', { status: 'done' });
+        }
+    };
+    
+    utterance.onerror = () => {
+        updateHostSpeakingIndicator('idle');
+        showClientAudioIndicator(false);
+        if (wasTranslated) {
+            socket.emit('translation-status', { status: 'done' });
+        }
+    };
+
+    window.speechSynthesis.speak(utterance);
+}
+
+// Show/hide client audio playing indicator
+function showClientAudioIndicator(show) {
+    const indicator = document.getElementById('client-audio-indicator');
+    if (!indicator) return;
+    
+    if (show) {
+        indicator.classList.remove('hidden');
+        indicator.classList.add('visible');
+    } else {
+        indicator.classList.remove('visible');
+        indicator.classList.add('hidden');
+    }
+}
+
+// Update host feedback panel with translation activity
+function updateHostFeedbackPanel(data) {
+    const panel = document.getElementById('host-feedback-panel');
+    const activeDiv = document.getElementById('active-translations');
+    
+    if (!panel || !activeDiv) return;
+    
+    // Show the panel if there's activity
+    if (data.summary.count > 0) {
+        panel.classList.remove('hidden');
+        panel.classList.add('visible');
+        
+        // Clear and rebuild the list
+        activeDiv.innerHTML = '';
+        
+        data.summary.clients.forEach(client => {
+            const item = document.createElement('div');
+            item.className = 'translation-item';
+            
+            let statusIcon = '🔄';
+            let statusText = 'Translating';
+            if (client.status === 'playing') {
+                statusIcon = '🔊';
+                statusText = 'Playing';
+            }
+            
+            item.innerHTML = `
+                <span class="client-name">${client.name}</span>
+                <span class="client-status ${client.status}">${statusIcon} ${statusText}</span>
+            `;
+            activeDiv.appendChild(item);
+        });
+    } else {
+        panel.classList.remove('visible');
+        panel.classList.add('hidden');
+    }
 }
 
 async function translateText(text, source, target) {
@@ -728,22 +874,34 @@ function updateHostSpeakingIndicator(state) {
     
     if (!light || !label) return;
     
+    // Track state for smooth transitions
+    if (state === lastHostStatus) return;
+    lastHostStatus = state;
+    
     // Remove all state classes
-    light.classList.remove('idle', 'speaking', 'translating');
+    light.classList.remove('idle', 'speaking', 'translating', 'playing');
+    indicator.classList.remove('active');
     
     switch (state) {
         case 'speaking':
             light.classList.add('speaking');
+            indicator.classList.add('active');
             label.textContent = 'Host Speaking';
             break;
         case 'translating':
             light.classList.add('translating');
+            indicator.classList.add('active');
             label.textContent = 'Translating...';
+            break;
+        case 'playing':
+            light.classList.add('playing');
+            indicator.classList.add('active');
+            label.textContent = '🔊 Playing Audio';
             break;
         case 'idle':
         default:
             light.classList.add('idle');
-            label.textContent = 'Host Idle';
+            label.textContent = 'Listening';
             break;
     }
 }
@@ -755,13 +913,9 @@ function addTranscriptEntry(name, text, langLabel, isHost, wasTranslated) {
     
     if (!container || !entries) return;
     
-    // Show transcript container if it has content
-    container.classList.add('visible');
-    transcriptVisible = true;
-    
-    // Update button state
-    const btn = document.getElementById('transcript-btn');
-    if (btn) btn.classList.add('active');
+    // Don't auto-show transcript - keep it hidden by default for less clutter
+    // User can toggle it with the button when they want to see it
+    // Only add content without forcing visibility
     
     // Create timestamp
     const now = new Date();

@@ -154,6 +154,15 @@ io.on('connection', (socket) => {
         const isHost = room.isHost(socket.id);
         const hostInfo = room.getHostInfo();
         
+        // If host is speaking, broadcast status to all clients first
+        if (isHost) {
+            room.broadcast('host-status', {
+                status: 'speaking',
+                hostName: name,
+                timestamp: Date.now()
+            });
+        }
+        
         // Broadcast to everyone else in the room
         room.broadcast('subtitle', {
             id: socket.id,
@@ -163,6 +172,19 @@ io.on('connection', (socket) => {
             isHost: isHost,
             hostLang: hostInfo.hostLang
         }, socket.id);
+    });
+    
+    // Client sends back translation status feedback (for host awareness)
+    socket.on('translation-status', (data) => {
+        const summary = room.updateTranslationStatus(socket.id, name, data.status);
+        
+        // Notify host about translation activity
+        room.notifyAdmins('translation-activity', {
+            clientId: socket.id,
+            clientName: name,
+            status: data.status, // 'translating' | 'playing' | 'done'
+            summary: summary
+        });
     });
     
     // --- Mediasoup Signaling ---
