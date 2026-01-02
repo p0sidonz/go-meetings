@@ -58,6 +58,13 @@ function preloadVoices() {
 preloadVoices();
 
 joinBtn.addEventListener('click', () => {
+  // Check if user is authenticated
+  if (!window.ApiService || !window.ApiService.isAuthenticated()) {
+    alert('Please login to join a meeting');
+    if (typeof switchTab === 'function') switchTab('login');
+    return;
+  }
+
   const roomId = roomIdInput.value.trim();
   const name = usernameInput.value.trim();
   const lang = languageSelect.value;

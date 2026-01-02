@@ -39,6 +39,12 @@ const io = socketIo(httpsServer);
 
 app.use(express.static('public'));
 
+// index.html is now the landing page (served automatically by express.static)
+// home.html is now the meeting app, served at /app
+app.get('/app', (req, res) => {
+  res.sendFile(__dirname + '/public/home.html');
+});
+
 let worker;
 
 async function runMediasoupWorker() {

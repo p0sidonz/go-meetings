@@ -2,515 +2,2190 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Go Meetings - Real-Time Translation Video Conferencing</title>
-    <meta name="description" content="Break language barriers with Go Meetings. Real-time video conferencing with instant translation in 100+ languages. Connect with anyone, anywhere." />
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              primary: {
-                50: '#f0f4ff',
-                100: '#e0e7ff',
-                200: '#c7d2fe',
-                300: '#a5b4fc',
-                400: '#818cf8',
-                500: '#6366f1',
-                600: '#4f46e5',
-                700: '#4338ca',
-                800: '#3730a3',
-                900: '#312e81',
-              },
-              accent: {
-                400: '#c084fc',
-                500: '#a855f7',
-                600: '#9333ea',
-              }
-            },
-            fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
-            },
-            animation: {
-              'float': 'float 6s ease-in-out infinite',
-              'float-delayed': 'float 6s ease-in-out infinite 3s',
-              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'gradient': 'gradient 8s ease infinite',
-              'slide-up': 'slideUp 0.6s ease-out',
-              'fade-in': 'fadeIn 0.8s ease-out',
-            },
-            keyframes: {
-              float: {
-                '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
-                '50%': { transform: 'translateY(-20px) rotate(3deg)' },
-              },
-              gradient: {
-                '0%, 100%': { backgroundPosition: '0% 50%' },
-                '50%': { backgroundPosition: '100% 50%' },
-              },
-              slideUp: {
-                '0%': { opacity: '0', transform: 'translateY(30px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              },
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              }
-            }
-          }
-        }
-      }
-    </script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Global Meeting</title>
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <link
+      href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
     <!-- Material Icons -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-    
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+
     <style>
-      html {
-        scroll-behavior: smooth;
+      :root {
+        --bg-color: #202124;
+        --secondary-bg: #3c4043;
+        --text-color: #e8eaed;
+        --control-bar-bg: #202124;
+        --red-color: #ea4335;
+        --blue-color: #8ab4f8;
+        --icon-color: #e8eaed;
       }
-      
-      .gradient-text {
-        background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
       }
-      
-      .gradient-bg {
-        background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 50%, #1e1b4b 100%);
-        background-size: 200% 200%;
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
       }
-      
-      .glass-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+
+      body {
+        font-family: "Google Sans", "Roboto", sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        touch-action: manipulation;
+        -webkit-overflow-scrolling: touch;
       }
-      
-      .glow-button {
-        box-shadow: 0 0 40px rgba(99, 102, 241, 0.4);
-        transition: all 0.3s ease;
+
+      /* Login / Waiting Screens */
+      #login-section,
+      #waiting-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        text-align: center;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        position: relative;
+        overflow: hidden;
       }
-      
-      .glow-button:hover {
-        box-shadow: 0 0 60px rgba(99, 102, 241, 0.6);
-        transform: translateY(-2px);
-      }
-      
-      .feature-card:hover {
-        transform: translateY(-8px);
-        border-color: rgba(99, 102, 241, 0.5);
-      }
-      
-      .orb {
+
+      /* Animated background orbs */
+      #login-section::before,
+      #login-section::after {
+        content: '';
         position: absolute;
         border-radius: 50%;
         filter: blur(80px);
         opacity: 0.4;
+        animation: float 6s ease-in-out infinite;
+      }
+
+      #login-section::before {
+        width: 300px;
+        height: 300px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        top: -100px;
+        right: -100px;
+      }
+
+      #login-section::after {
+        width: 250px;
+        height: 250px;
+        background: linear-gradient(135deg, #474448 0%, #f5576c 100%);
+        bottom: -80px;
+        left: -80px;
+        animation-delay: -3s;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(5deg); }
+      }
+
+      /* Login Card */
+      .login-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        padding: 40px 36px;
+        width: 100%;
+        max-width: 380px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .login-logo {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      }
+
+      .login-logo .material-icons {
+        font-size: 32px;
+        color: white;
+      }
+
+      .login-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 8px;
+        letter-spacing: -0.5px;
+      }
+
+      .login-subtitle {
+        font-size: 0.9rem;
+        color: #9aa0a6;
+        margin-bottom: 32px;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+        text-align: left;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 0.8rem;
+        color: #9aa0a6;
+        margin-bottom: 6px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .login-card input,
+      .login-card select {
+        width: 100%;
+        padding: 14px 16px;
+        margin: 0;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        font-size: 16px;
+        outline: none;
+        transition: all 0.3s ease;
+      }
+
+      .login-card input::placeholder {
+        color: #5f6368;
+      }
+
+      .login-card input:focus,
+      .login-card select:focus {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+      }
+
+      .login-card select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239aa0a6' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 16px center;
+        padding-right: 40px;
+      }
+
+      .login-card select option {
+        background: #202124;
+        color: white;
+        padding: 12px;
+      }
+
+      button#join-btn {
+        width: 100%;
+        margin-top: 24px;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 1rem;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      button#join-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+      }
+
+      button#join-btn:active {
+        transform: translateY(0);
+      }
+
+      /* Auth Tabs */
+      .auth-tab.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+      }
+
+      .auth-tab:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e8eaed;
+      }
+
+      /* Auth Buttons (Login, Register) */
+      button#login-btn,
+      button#register-btn {
+        width: 100%;
+        margin-top: 16px;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 1rem;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      button#login-btn:hover,
+      button#register-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+      }
+
+      button#login-btn:disabled,
+      button#register-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Auth Message */
+      .auth-message-error {
+        background: rgba(234, 67, 53, 0.15) !important;
+        border: 1px solid rgba(234, 67, 53, 0.3);
+        color: #f28b82 !important;
+      }
+
+      .auth-message-success {
+        background: rgba(52, 168, 83, 0.15) !important;
+        border: 1px solid rgba(52, 168, 83, 0.3);
+        color: #81c995 !important;
+      }
+
+      /* Meeting Item */
+      .meeting-item {
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .meeting-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .meeting-item-name {
+        font-weight: 500;
+        color: #fff;
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+
+      .meeting-item-time {
+        font-size: 12px;
+        color: #9aa0a6;
+      }
+
+      /* Waiting Section */
+      #waiting-section .login-card {
+        text-align: center;
+      }
+
+      .waiting-spinner {
+        width: 48px;
+        height: 48px;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      h1,
+      h2 {
+        font-weight: 400;
+        margin-bottom: 20px;
+      }
+
+      /* Room Layout */
+      #room-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        position: relative;
+      }
+
+      /* Subtle animated gradient overlay */
+      #room-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(ellipse at top right, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+                    radial-gradient(ellipse at bottom left, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      #main-area {
+        flex: 1;
+        display: flex;
+        position: relative;
+        overflow: hidden;
+        z-index: 1;
+      }
+
+      #video-grid {
+        flex: 1;
+        display: flex;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: center;
+        padding: 20px;
+        gap: 16px;
+        overflow-y: auto;
+      }
+
+      /* Use a grid logic if needed, but flex wrap is simple for now */
+      video {
+        background: #000;
+        border-radius: 8px;
+        max-width: 100%;
+        max-height: 80vh;
+        object-fit: contain;
+      }
+
+      /* Sidebar (Participants) - Glassmorphism */
+      #sidebar {
+        width: 320px;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        color: #e8eaed;
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 10;
+        box-shadow: -5px 0 30px rgba(0, 0, 0, 0.3);
+      }
+
+      #sidebar.open {
+        display: flex;
+      }
+
+      .sidebar-header {
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .sidebar-header h3 {
+        color: #fff;
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 500;
+      }
+
+      #participants-container {
+        padding: 10px;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .peer-item {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background 0.2s;
       }
       
-      .language-tag {
-        animation: pulse 3s ease-in-out infinite;
+      .peer-item:hover {
+        background: rgba(255, 255, 255, 0.08);
       }
       
-      .language-tag:nth-child(2) { animation-delay: 0.5s; }
-      .language-tag:nth-child(3) { animation-delay: 1s; }
-      .language-tag:nth-child(4) { animation-delay: 1.5s; }
-      .language-tag:nth-child(5) { animation-delay: 2s; }
-      .language-tag:nth-child(6) { animation-delay: 2.5s; }
+      .peer-item.left {
+        opacity: 0.5;
+        order: 100;
+      }
+      
+      .peer-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--blue-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        font-size: 16px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+      
+      .peer-info {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-width: 0;
+      }
+      
+      .peer-name {
+        font-weight: 500;
+        color: #fff;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      .peer-time {
+        font-size: 11px;
+        color: #9aa0a6;
+        margin-top: 2px;
+      }
+      
+      .peer-time {
+          font-size: 11px;
+          color: #5f6368;
+          margin-top: 2px;
+      }
+      
+      .peer-badge {
+          font-size: 10px;
+          background: #e8eaed;
+          color: #3c4043;
+          padding: 2px 6px;
+          border-radius: 4px;
+          margin-left: 6px;
+          font-weight: bold;
+      }
+      
+      .peer-badge.admin {
+          background: #fce8e6;
+          color: #c5221f;
+      }
+
+      /* Controls Footer - Glassmorphism */
+      #controls-footer {
+        height: 80px;
+        background: rgba(32, 33, 36, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 0 20px;
+        z-index: 20;
+        position: relative;
+      }
+
+      .control-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--icon-color);
+        transition: all 0.2s ease;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+
+      .control-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.05);
+      }
+
+      .control-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .control-btn.danger {
+        background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 4px 15px rgba(234, 67, 53, 0.4);
+      }
+
+      .control-btn.off {
+        background: rgba(234, 67, 53, 0.3);
+        color: white;
+        border-color: rgba(234, 67, 53, 0.5);
+      }
+
+      .material-icons {
+        font-size: 24px;
+      }
+
+      /* Sharing Badge - Glassmorphism */
+      .sharing-indicator {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(102, 126, 234, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        padding: 10px 16px;
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #8ab4f8;
+        font-weight: 500;
+      }
+
+      /* Captions */
+      #subtitles-area {
+        position: absolute;
+        bottom: 100px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        pointer-events: none;
+        display: none;
+        z-index: 50;
+      }
+
+      #subtitles-inner {
+        display: inline-block;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 1.2rem;
+        color: white;
+        max-width: 80%;
+      }
+
+      /* Traffic Signal Speaking Indicator - Glassmorphism */
+      #host-speaking-indicator {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 12px 20px;
+        border-radius: 30px;
+        z-index: 100;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      .signal-light {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background-color: #5f6368;
+        transition: all 0.3s ease;
+      }
+
+      .signal-light.idle {
+        background-color: #5f6368;
+        box-shadow: none;
+      }
+
+      .signal-light.speaking {
+        background-color: #34a853;
+        box-shadow: 0 0 12px #34a853, 0 0 24px rgba(52, 168, 83, 0.5);
+        animation: pulse-green 1s infinite;
+      }
+
+      .signal-light.translating {
+        background-color: #fbbc04;
+        box-shadow: 0 0 12px #fbbc04, 0 0 24px rgba(251, 188, 4, 0.5);
+        animation: pulse-yellow 0.5s infinite;
+      }
+
+      .signal-light.playing {
+        background-color: #8ab4f8;
+        box-shadow: 0 0 12px #8ab4f8, 0 0 24px rgba(138, 180, 248, 0.5);
+        animation: pulse-blue 0.8s infinite;
+      }
+
+      @keyframes pulse-green {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.1); }
+      }
+
+      @keyframes pulse-yellow {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+      }
+
+      @keyframes pulse-blue {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.15); }
+      }
+
+      .signal-label {
+        color: #fff;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+      }
+
+      /* Enhanced indicator when active */
+      #host-speaking-indicator.active {
+        background: linear-gradient(135deg, rgba(52, 168, 83, 0.15) 0%, rgba(102, 126, 234, 0.15) 100%);
+        border-color: rgba(52, 168, 83, 0.3);
+      }
+
+      /* Host Feedback Panel - Shows translation activity (host only) */
+      #host-feedback-panel {
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        padding: 12px 16px;
+        min-width: 200px;
+        max-width: 300px;
+        z-index: 99;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        display: none;
+      }
+
+      #host-feedback-panel.visible {
+        display: block;
+        opacity: 1;
+      }
+
+      #host-feedback-panel.hidden {
+        opacity: 0;
+        display: none;
+      }
+
+      .feedback-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #8ab4f8;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .feedback-header .material-icons {
+        font-size: 16px;
+      }
+
+      .translation-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 13px;
+      }
+
+      .client-name {
+        color: #e8eaed;
+        font-weight: 500;
+      }
+
+      .client-status {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        background: rgba(251, 188, 4, 0.2);
+        color: #fbbc04;
+      }
+
+      .client-status.playing {
+        background: rgba(138, 180, 248, 0.2);
+        color: #8ab4f8;
+      }
+
+      /* Client Audio Playing Indicator */
+      #client-audio-indicator {
+        position: absolute;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(138, 180, 248, 0.15);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(138, 180, 248, 0.3);
+        padding: 10px 20px;
+        border-radius: 30px;
+        display: none;
+        align-items: center;
+        gap: 12px;
+        z-index: 60;
+        color: #8ab4f8;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      #client-audio-indicator.visible {
+        display: flex;
+        animation: fadeIn 0.3s ease;
+      }
+
+      #client-audio-indicator.hidden {
+        display: none;
+      }
+
+      .audio-wave {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        height: 20px;
+      }
+
+      .audio-wave::before,
+      .audio-wave::after,
+      .audio-wave span {
+        content: '';
+        width: 3px;
+        height: 100%;
+        background: #8ab4f8;
+        border-radius: 3px;
+        animation: wave 0.5s ease-in-out infinite;
+      }
+
+      .audio-wave::before {
+        animation-delay: 0s;
+        height: 60%;
+      }
+
+      .audio-wave span {
+        animation-delay: 0.1s;
+        height: 100%;
+      }
+
+      .audio-wave::after {
+        animation-delay: 0.2s;
+        height: 40%;
+      }
+
+      @keyframes wave {
+        0%, 100% { transform: scaleY(0.5); }
+        50% { transform: scaleY(1); }
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+
+      /* Audio Mode Button Active State */
+      #audio-mode-btn.active {
+        background: linear-gradient(135deg, #fbbc04 0%, #f9ab00 100%) !important;
+        color: #202124 !important;
+        box-shadow: 0 4px 20px rgba(251, 188, 4, 0.5);
+      }
+
+      /* Scrollable Transcript Container - Glassmorphism */
+      #transcript-container {
+        position: absolute;
+        bottom: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        max-width: 700px;
+        max-height: 220px;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        overflow: hidden;
+        z-index: 50;
+        display: none;
+        flex-direction: column;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      #transcript-container.visible {
+        display: flex;
+      }
+
+      #transcript-header {
+        padding: 12px 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #transcript-header span {
+        font-size: 13px;
+        color: #fff;
+        font-weight: 500;
+      }
+
+      #transcript-entries {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 16px;
+        scroll-behavior: smooth;
+      }
+
+      .transcript-entry {
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(95, 99, 104, 0.3);
+      }
+
+      .transcript-entry:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
+      .transcript-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .transcript-name {
+        font-weight: 500;
+        color: #8ab4f8;
+        font-size: 13px;
+      }
+
+      .transcript-name.host {
+        color: #f28b82;
+      }
+
+      .transcript-time {
+        font-size: 11px;
+        color: #9aa0a6;
+      }
+
+      .transcript-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(138, 180, 248, 0.2);
+        color: #8ab4f8;
+      }
+
+      .transcript-badge.translated {
+        background: rgba(251, 188, 4, 0.2);
+        color: #fbbc04;
+      }
+
+      .transcript-text {
+        color: #e8eaed;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* Mobile Responsiveness */
+      @media (max-width: 768px) {
+        /* Ensure full height on mobile */
+        html, body {
+          height: 100%;
+          height: -webkit-fill-available;
+        }
+
+        /* Room Section Layout */
+        #room-section {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          position: relative;
+        }
+
+        /* Mobile Header for Room Info */
+        #mobile-header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 12px;
+          background-color: var(--control-bar-bg);
+          border-bottom: 1px solid #3c4043;
+          color: #e8eaed;
+          font-size: 12px;
+          flex-shrink: 0;
+          min-height: 44px;
+        }
+
+        #mobile-header .room-info-mobile {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        /* Hide desktop room info in footer on mobile */
+        #controls-footer .room-info-desktop {
+          display: none !important;
+        }
+
+        /* Controls Footer - Mobile */
+        #controls-footer {
+          height: 60px;
+          min-height: 60px;
+          padding: 8px 8px;
+          padding-bottom: max(8px, env(safe-area-inset-bottom));
+          gap: 8px;
+          justify-content: center;
+          flex-shrink: 0;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* Smaller control buttons on mobile */
+        .control-btn {
+          width: 42px;
+          height: 42px;
+          min-width: 42px;
+          min-height: 42px;
+          flex-shrink: 0;
+        }
+
+        .control-btn.danger {
+          width: 50px !important;
+          min-width: 50px !important;
+        }
+
+        .material-icons {
+          font-size: 20px;
+        }
+
+        /* Main area adjustments */
+        #main-area {
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
+          position: relative;
+        }
+
+        #video-grid {
+          padding: 8px;
+          gap: 8px;
+          height: 100%;
+          overflow-y: auto;
+        }
+
+        /* Full-width sidebar on mobile */
+        #sidebar {
+          width: 100%;
+          border-left: none;
+          max-height: 60vh;
+        }
+
+        /* Host speaking indicator mobile */
+        #host-speaking-indicator {
+          top: 8px;
+          padding: 6px 12px;
+          gap: 6px;
+          border-radius: 16px;
+          max-width: 90%;
+        }
+
+        .signal-light {
+          width: 12px;
+          height: 12px;
+        }
+
+        .signal-label {
+          font-size: 11px;
+        }
+
+        /* Transcript container mobile */
+        #transcript-container {
+          width: 94%;
+          max-width: none;
+          bottom: 70px;
+          max-height: 150px;
+          border-radius: 8px;
+        }
+
+        #transcript-header {
+          padding: 8px 12px;
+        }
+
+        #transcript-header span {
+          font-size: 12px;
+        }
+
+        #transcript-entries {
+          padding: 8px 12px;
+        }
+
+        .transcript-entry {
+          margin-bottom: 8px;
+          padding-bottom: 6px;
+        }
+
+        .transcript-name {
+          font-size: 12px;
+        }
+
+        .transcript-time {
+          font-size: 10px;
+        }
+
+        .transcript-badge {
+          font-size: 9px;
+          padding: 2px 4px;
+        }
+
+        .transcript-text {
+          font-size: 13px;
+        }
+
+        /* Subtitles closer to bottom on mobile */
+        #subtitles-area {
+          bottom: 70px;
+        }
+
+        #subtitles-inner {
+          font-size: 0.9rem;
+          padding: 6px 10px;
+          max-width: 92%;
+        }
+
+        /* Login section mobile */
+        #login-section {
+          padding: 16px;
+          justify-content: flex-start;
+          padding-top: 15vh;
+        }
+
+        #login-section h1 {
+          font-size: 1.5rem;
+          margin-bottom: 24px;
+        }
+
+        #login-section input,
+        #login-section select {
+          width: 100%;
+          max-width: 300px;
+          padding: 14px 16px;
+          font-size: 16px; /* Prevents iOS zoom on focus */
+        }
+
+        #login-section button#join-btn {
+          width: 100%;
+          max-width: 300px;
+          padding: 14px 24px;
+          font-size: 16px;
+        }
+
+        /* Join requests area mobile */
+        #join-requests-area {
+          left: 8px;
+          right: 8px;
+          top: 50px;
+          bottom: auto;
+        }
+
+        #join-requests-area > div {
+          min-width: auto !important;
+          width: 100%;
+        }
+
+        /* Sharing indicator mobile */
+        .sharing-indicator {
+          top: 8px;
+          left: 8px;
+          font-size: 11px;
+          padding: 5px 8px;
+          gap: 4px;
+        }
+
+        .sharing-indicator .material-icons {
+          font-size: 16px;
+        }
+      }
+
+      /* Extra small devices */
+      @media (max-width: 360px) {
+        .control-btn {
+          width: 38px;
+          height: 38px;
+          min-width: 38px;
+          min-height: 38px;
+        }
+
+        #controls-footer {
+          gap: 6px;
+          padding: 6px;
+        }
+
+        .material-icons {
+          font-size: 18px;
+        }
+      }
+
+      /* Hide mobile header on desktop */
+      #mobile-header {
+        display: none;
+      }
     </style>
   </head>
-  
-  <body class="gradient-bg min-h-screen font-sans text-white overflow-x-hidden">
-    <!-- Decorative Orbs -->
-    <div class="orb w-96 h-96 bg-primary-500 top-0 right-0 animate-float"></div>
-    <div class="orb w-80 h-80 bg-accent-500 bottom-20 left-0 animate-float-delayed"></div>
-    <div class="orb w-64 h-64 bg-pink-500 top-1/2 right-1/4 animate-float" style="animation-delay: -2s;"></div>
-    
-    <!-- Navigation -->
-    <nav class="fixed top-0 left-0 right-0 z-50 glass-card">
-      <div class="max-w-7xl mx-auto px-6 py-4">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg">
-              <span class="material-icons-outlined text-white text-xl">translate</span>
-            </div>
-            <span class="text-xl font-bold">Go Meetings</span>
-          </div>
-          
-          <div class="hidden md:flex items-center gap-8">
-            <a href="#features" class="text-gray-300 hover:text-white transition-colors">Features</a>
-            <a href="#how-it-works" class="text-gray-300 hover:text-white transition-colors">How It Works</a>
-            <a href="#languages" class="text-gray-300 hover:text-white transition-colors">Languages</a>
-          </div>
-          
-          <a href="index.html" class="px-6 py-2.5 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 font-semibold text-sm hover:opacity-90 transition-opacity glow-button">
-            Start Meeting
-          </a>
-        </div>
-      </div>
-    </nav>
-    
-    <!-- Hero Section -->
-    <section class="relative min-h-screen flex items-center justify-center pt-20 px-6">
-      <div class="max-w-6xl mx-auto text-center relative z-10">
-        <div class="animate-slide-up">
-          <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm text-primary-300 mb-8">
-            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            Real-time Translation Powered by AI
-          </span>
-          
-          <h1 class="text-5xl md:text-7xl font-extrabold leading-tight mb-6">
-            Break Language Barriers
-            <br />
-            <span class="gradient-text">Connect Globally</span>
-          </h1>
-          
-          <p class="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto mb-10 leading-relaxed">
-            Video conferencing with instant real-time translation.
-            Speak your language, everyone understands.
-          </p>
-          
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="index.html" class="group px-8 py-4 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 font-bold text-lg glow-button flex items-center gap-3">
-              <span class="material-icons-outlined">video_call</span>
-              Start Free Meeting
-              <span class="material-icons-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-            </a>
-            <a href="#how-it-works" class="px-8 py-4 rounded-full glass-card font-semibold text-lg hover:bg-white/10 transition-colors flex items-center gap-2">
-              <span class="material-icons-outlined">play_circle</span>
-              See How It Works
-            </a>
-          </div>
-        </div>
+  <body>
+    <!-- Login Section -->
+    <div id="login-section">
+      <!-- Container for side-by-side layout (centers when only one card visible) -->
+      <div id="auth-container" style="display: flex; gap: 24px; align-items: flex-start; width: 100%; max-width: 800px; justify-content: center;">
         
-        <!-- Hero Visual -->
-        <div class="mt-16 animate-fade-in" style="animation-delay: 0.3s;">
-          <div class="relative mx-auto max-w-4xl">
-            <div class="glass-card rounded-3xl p-4 shadow-2xl">
-              <div class="bg-slate-900/80 rounded-2xl p-6 aspect-video flex items-center justify-center relative overflow-hidden">
-                <!-- Mock Meeting Interface -->
-                <div class="grid grid-cols-2 gap-4 w-full h-full">
-                  <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center relative">
-                    <div class="w-20 h-20 rounded-full bg-primary-500/30 flex items-center justify-center">
-                      <span class="text-3xl">👤</span>
-                    </div>
-                    <div class="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-sm flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full bg-green-400"></span>
-                      Speaking English
-                    </div>
-                  </div>
-                  <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center relative">
-                    <div class="w-20 h-20 rounded-full bg-accent-500/30 flex items-center justify-center">
-                      <span class="text-3xl">👤</span>
-                    </div>
-                    <div class="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-sm flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                      Hearing Spanish
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Translation Subtitle -->
-                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl bg-black/70 backdrop-blur-sm">
-                  <p class="text-white text-lg">"¡Hola! Encantado de conocerte."</p>
-                  <p class="text-gray-400 text-sm mt-1">Hello! Nice to meet you.</p>
-                </div>
+        <!-- Left: Auth Card -->
+        <div class="login-card" style="flex: 1; max-width: 420px;">
+          
+          <!-- User Info Header (shown when authenticated) -->
+          <div id="user-info-header" class="hidden" style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div id="user-avatar" style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 18px; color: white;"></div>
+              <div style="flex: 1;">
+                <div id="user-fullname" style="font-weight: 500; color: #fff;"></div>
+                <div id="user-username" style="font-size: 12px; color: #9aa0a6;"></div>
+              </div>
+              <button id="settings-btn" onclick="toggleSettingsModal()" style="padding: 6px 8px; border: none; background: rgba(255,255,255,0.1); color: #9aa0a6; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 4px;" title="Settings">
+                <span class="material-icons" style="font-size: 18px; vertical-align: middle;">settings</span>
+              </button>
+              <button id="logout-btn" style="padding: 6px 12px; border: none; background: rgba(234, 67, 53, 0.2); color: #f28b82; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">Logout</button>
+            </div>
+          </div>
+        
+          <h1 class="login-title">Global Meeting</h1>
+          <p class="login-subtitle">Real-time translation for everyone</p>
+          
+          <!-- Tab Navigation -->
+          <div class="auth-tabs" style="display: flex; gap: 0; margin-bottom: 24px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 4px;">
+            <button class="auth-tab" data-tab="join" id="join-tab-btn" style="flex: 1; padding: 10px 16px; border: none; background: transparent; color: #9aa0a6; cursor: pointer; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s; display: none;">Join</button>
+            <button class="auth-tab active" data-tab="login" style="flex: 1; padding: 10px 16px; border: none; background: transparent; color: #9aa0a6; cursor: pointer; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s;">Login</button>
+            <button class="auth-tab" data-tab="register" style="flex: 1; padding: 10px 16px; border: none; background: transparent; color: #9aa0a6; cursor: pointer; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s;">Register</button>
+          </div>
+          
+          <!-- Error/Success Messages -->
+          <div id="auth-message" class="hidden" style="padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"></div>
+          
+          <!-- Join Tab (requires authentication) -->
+          <div id="tab-join" class="tab-content hidden">
+            <div class="form-group">
+              <label>Room ID</label>
+              <input type="text" id="room-id" placeholder="Enter room code" value="room1" />
+            </div>
+            
+            <div class="form-group">
+              <label>Your Name</label>
+              <input type="text" id="username" placeholder="Your display name" readonly />
+            </div>
+            
+            <div class="form-group">
+              <label>Your Language</label>
+              <select id="language">
+                <option value="en-US">🇺🇸 English</option>
+                <option value="es-ES">🇪🇸 Spanish</option>
+                <option value="fr-FR">🇫🇷 French</option>
+                <option value="hi-IN">🇮🇳 Hindi</option>
+                <option value="ru-RU">🇷🇺 Russian</option>
+                <option value="zh-CN">🇨🇳 Chinese</option>
+              </select>
+            </div>
+            
+            <button id="join-btn">Join Meeting</button>
+          </div>
+          
+          <!-- Login Tab (default for unauthenticated users) -->
+          <div id="tab-login" class="tab-content">
+            <div class="form-group">
+              <label>Username or Email</label>
+              <input type="text" id="login-username" placeholder="Enter username or email" />
+            </div>
+            
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="login-password" placeholder="Enter password" />
+            </div>
+            
+            <button id="login-btn">Sign In</button>
+            
+            <p style="text-align: center; margin-top: 16px; font-size: 13px; color: #9aa0a6;">
+              Don't have an account? <a href="#" onclick="switchTab('register'); return false;" style="color: #8ab4f8; text-decoration: none;">Register</a>
+            </p>
+          </div>
+          
+          <!-- Register Tab -->
+          <div id="tab-register" class="tab-content hidden">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label>First Name</label>
+                <input type="text" id="reg-firstname" placeholder="First name" />
+              </div>
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label>Last Name</label>
+                <input type="text" id="reg-lastname" placeholder="Last name" />
               </div>
             </div>
             
-            <!-- Floating Elements -->
-            <div class="absolute -top-6 -left-6 px-4 py-2 rounded-xl glass-card animate-float text-sm flex items-center gap-2">
-              <span class="text-2xl">🇫🇷</span> French
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="reg-username" placeholder="Choose a username" />
             </div>
-            <div class="absolute -top-6 -right-6 px-4 py-2 rounded-xl glass-card animate-float-delayed text-sm flex items-center gap-2">
-              <span class="text-2xl">🇯🇵</span> Japanese
-            </div>
-            <div class="absolute -bottom-4 left-10 px-4 py-2 rounded-xl glass-card animate-float text-sm flex items-center gap-2" style="animation-delay: -1s;">
-              <span class="text-2xl">🇩🇪</span> German
-            </div>
-            <div class="absolute -bottom-4 right-10 px-4 py-2 rounded-xl glass-card animate-float-delayed text-sm flex items-center gap-2">
-              <span class="text-2xl">🇨🇳</span> Chinese
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-    
-    <!-- Features Section -->
-    <section id="features" class="py-32 px-6 relative">
-      <div class="max-w-6xl mx-auto">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold mb-4">
-            Everything You Need for <span class="gradient-text">Global Communication</span>
-          </h2>
-          <p class="text-gray-400 text-xl max-w-2xl mx-auto">
-            Powerful features designed to make international meetings seamless
-          </p>
-        </div>
-        
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <!-- Feature 1 -->
-          <div class="glass-card rounded-2xl p-8 feature-card transition-all duration-300">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mb-6 shadow-lg">
-              <span class="material-icons-outlined text-white text-2xl">translate</span>
-            </div>
-            <h3 class="text-xl font-bold mb-3">Real-Time Translation</h3>
-            <p class="text-gray-400 leading-relaxed">
-              Speak naturally in your language. AI translates instantly for all participants in their preferred language.
-            </p>
-          </div>
-          
-          <!-- Feature 2 -->
-          <div class="glass-card rounded-2xl p-8 feature-card transition-all duration-300">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 flex items-center justify-center mb-6 shadow-lg">
-              <span class="material-icons-outlined text-white text-2xl">record_voice_over</span>
-            </div>
-            <h3 class="text-xl font-bold mb-3">Text-to-Speech</h3>
-            <p class="text-gray-400 leading-relaxed">
-              Translated text is automatically spoken aloud, creating a natural conversation flow.
-            </p>
-          </div>
-          
-          <!-- Feature 3 -->
-          <div class="glass-card rounded-2xl p-8 feature-card transition-all duration-300">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-6 shadow-lg">
-              <span class="material-icons-outlined text-white text-2xl">subtitles</span>
-            </div>
-            <h3 class="text-xl font-bold mb-3">Live Subtitles</h3>
-            <p class="text-gray-400 leading-relaxed">
-              See real-time transcription and translated subtitles during your meeting for full clarity.
-            </p>
-          </div>
-          
-          <!-- Feature 4 -->
-          <div class="glass-card rounded-2xl p-8 feature-card transition-all duration-300">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-6 shadow-lg">
-              <span class="material-icons-outlined text-white text-2xl">verified_user</span>
-            </div>
-            <h3 class="text-xl font-bold mb-3">Host Controls</h3>
-            <p class="text-gray-400 leading-relaxed">
-              Admins approve participants, control screen sharing, and manage the meeting flow.
-            </p>
-          </div>
-          
-          <!-- Feature 5 -->
-          <div class="glass-card rounded-2xl p-8 feature-card transition-all duration-300">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center mb-6 shadow-lg">
-              <span class="material-icons-outlined text-white text-2xl">screen_share</span>
-            </div>
-            <h3 class="text-xl font-bold mb-3">Screen Sharing</h3>
-            <p class="text-gray-400 leading-relaxed">
-              Share your screen with all participants for presentations and collaborations.
-            </p>
-          </div>
-          
-          <!-- Feature 6 -->
-          <div class="glass-card rounded-2xl p-8 feature-card transition-all duration-300">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center mb-6 shadow-lg">
-              <span class="material-icons-outlined text-white text-2xl">speed</span>
-            </div>
-            <h3 class="text-xl font-bold mb-3">Low Latency</h3>
-            <p class="text-gray-400 leading-relaxed">
-              Powered by Mediasoup for WebRTC, ensuring crystal clear video and audio with minimal delay.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-    
-    <!-- How It Works Section -->
-    <section id="how-it-works" class="py-32 px-6 relative">
-      <div class="max-w-6xl mx-auto">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold mb-4">
-            How It <span class="gradient-text">Works</span>
-          </h2>
-          <p class="text-gray-400 text-xl max-w-2xl mx-auto">
-            Start communicating across languages in three simple steps
-          </p>
-        </div>
-        
-        <div class="grid md:grid-cols-3 gap-8">
-          <!-- Step 1 -->
-          <div class="text-center">
-            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mx-auto mb-6 text-3xl font-bold shadow-xl">
-              1
-            </div>
-            <h3 class="text-2xl font-bold mb-3">Create or Join</h3>
-            <p class="text-gray-400 leading-relaxed">
-              Start a new meeting room as a host or join an existing one with a room code.
-            </p>
-          </div>
-          
-          <!-- Step 2 -->
-          <div class="text-center">
-            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-accent-500 to-pink-500 flex items-center justify-center mx-auto mb-6 text-3xl font-bold shadow-xl">
-              2
-            </div>
-            <h3 class="text-2xl font-bold mb-3">Select Language</h3>
-            <p class="text-gray-400 leading-relaxed">
-              Choose your preferred language from 100+ options. You'll hear translations in your language.
-            </p>
-          </div>
-          
-          <!-- Step 3 -->
-          <div class="text-center">
-            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center mx-auto mb-6 text-3xl font-bold shadow-xl">
-              3
-            </div>
-            <h3 class="text-2xl font-bold mb-3">Start Talking</h3>
-            <p class="text-gray-400 leading-relaxed">
-              Speak naturally! Your words are translated and spoken in real-time for all participants.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-    
-    <!-- Languages Section -->
-    <section id="languages" class="py-32 px-6 relative overflow-hidden">
-      <div class="max-w-6xl mx-auto text-center">
-        <h2 class="text-4xl md:text-5xl font-bold mb-4">
-          <span class="gradient-text">100+ Languages</span> Supported
-        </h2>
-        <p class="text-gray-400 text-xl max-w-2xl mx-auto mb-12">
-          Connect with anyone, anywhere in the world
-        </p>
-        
-        <div class="flex flex-wrap justify-center gap-3 max-w-4xl mx-auto">
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇺🇸</span> English</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇪🇸</span> Spanish</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇫🇷</span> French</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇩🇪</span> German</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇮🇹</span> Italian</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇵🇹</span> Portuguese</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇨🇳</span> Chinese</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇯🇵</span> Japanese</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇰🇷</span> Korean</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇷🇺</span> Russian</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇦🇪</span> Arabic</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇮🇳</span> Hindi</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇳🇱</span> Dutch</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇸🇪</span> Swedish</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇵🇱</span> Polish</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇹🇷</span> Turkish</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇻🇳</span> Vietnamese</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇹🇭</span> Thai</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇮🇩</span> Indonesian</span>
-          <span class="language-tag px-4 py-2 rounded-full glass-card text-sm flex items-center gap-2"><span>🇬🇷</span> Greek</span>
-        </div>
-        
-        <p class="text-gray-500 text-sm mt-8">And many more...</p>
-      </div>
-    </section>
-    
-    <!-- Use Cases Section -->
-    <section class="py-32 px-6 relative">
-      <div class="max-w-6xl mx-auto">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold mb-4">
-            Perfect For <span class="gradient-text">Every Industry</span>
-          </h2>
-        </div>
-        
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div class="glass-card rounded-2xl p-6 text-center feature-card transition-all duration-300">
-            <div class="text-5xl mb-4">🏥</div>
-            <h3 class="font-bold text-lg mb-2">Healthcare</h3>
-            <p class="text-gray-400 text-sm">Doctor-patient communication without barriers</p>
-          </div>
-          
-          <div class="glass-card rounded-2xl p-6 text-center feature-card transition-all duration-300">
-            <div class="text-5xl mb-4">🌍</div>
-            <h3 class="font-bold text-lg mb-2">NGOs</h3>
-            <p class="text-gray-400 text-sm">Coordinate humanitarian efforts globally</p>
-          </div>
-          
-          <div class="glass-card rounded-2xl p-6 text-center feature-card transition-all duration-300">
-            <div class="text-5xl mb-4">🎓</div>
-            <h3 class="font-bold text-lg mb-2">Education</h3>
-            <p class="text-gray-400 text-sm">International classrooms and tutoring</p>
-          </div>
-          
-          <div class="glass-card rounded-2xl p-6 text-center feature-card transition-all duration-300">
-            <div class="text-5xl mb-4">💼</div>
-            <h3 class="font-bold text-lg mb-2">Business</h3>
-            <p class="text-gray-400 text-sm">Global team meetings made effortless</p>
-          </div>
-        </div>
-      </div>
-    </section>
-    
-    <!-- CTA Section -->
-    <section class="py-32 px-6 relative">
-      <div class="max-w-4xl mx-auto text-center">
-        <div class="glass-card rounded-3xl p-12 md:p-16 relative overflow-hidden">
-          <div class="orb w-64 h-64 bg-primary-500 -top-32 -right-32 opacity-30"></div>
-          <div class="orb w-48 h-48 bg-accent-500 -bottom-24 -left-24 opacity-30"></div>
-          
-          <div class="relative z-10">
-            <h2 class="text-3xl md:text-5xl font-bold mb-6">
-              Ready to Break Language Barriers?
-            </h2>
-            <p class="text-gray-400 text-xl mb-10 max-w-2xl mx-auto">
-              Start your first multilingual meeting in seconds. No downloads, no sign-ups required.
-            </p>
             
-            <a href="index.html" class="inline-flex items-center gap-3 px-10 py-5 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 font-bold text-xl glow-button group">
-              <span class="material-icons-outlined text-2xl">videocam</span>
-              Start Your Free Meeting
-              <span class="material-icons-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-    
-    <!-- Footer -->
-    <footer class="py-12 px-6 border-t border-white/10">
-      <div class="max-w-6xl mx-auto">
-        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
-              <span class="material-icons-outlined text-white">translate</span>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="reg-email" placeholder="Enter your email" />
             </div>
-            <span class="text-xl font-bold">Go Meetings</span>
+            
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="reg-password" placeholder="Create a password" />
+            </div>
+            
+            <div class="form-group">
+              <label>Confirm Password</label>
+              <input type="password" id="reg-confirm-password" placeholder="Confirm password" />
+            </div>
+            
+            <button id="register-btn">Create Account</button>
+            
+            <p style="text-align: center; margin-top: 16px; font-size: 13px; color: #9aa0a6;">
+              Already have an account? <a href="#" onclick="switchTab('login'); return false;" style="color: #8ab4f8; text-decoration: none;">Sign In</a>
+            </p>
           </div>
-          
-          <div class="flex items-center gap-6 text-gray-400 text-sm">
-            <a href="#features" class="hover:text-white transition-colors">Features</a>
-            <a href="#how-it-works" class="hover:text-white transition-colors">How It Works</a>
-            <a href="#languages" class="hover:text-white transition-colors">Languages</a>
+        </div>
+        
+        <!-- Right: My Meetings Panel (shown when authenticated) -->
+        <div id="my-meetings-section" class="hidden login-card" style="flex: 1; max-width: 340px; min-width: 280px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <h3 style="margin: 0; font-size: 16px; font-weight: 500; color: #fff;">📅 My Meetings</h3>
+            <button id="create-meeting-btn" style="padding: 6px 12px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">+ New</button>
           </div>
-          
-          <p class="text-gray-500 text-sm">
-            © 2024 Go Meetings. Open Source.
-          </p>
+          <div id="meetings-list" style="max-height: 350px; overflow-y: auto;"></div>
         </div>
       </div>
-    </footer>
-    
-    <!-- Smooth scroll for anchor links -->
+    </div>
+
+    <!-- Waiting Section -->
+    <div id="waiting-section" class="hidden">
+      <div class="login-card">
+        <div class="waiting-spinner"></div>
+        <h2 style="color: #fff; margin-bottom: 8px;">Asking to join...</h2>
+        <p style="color: #9aa0a6; margin: 0;">You'll join the call when the host lets you in.</p>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+      <div class="login-card" style="max-width: 420px; position: relative; max-height: 90vh; overflow-y: auto;">
+        <button onclick="toggleSettingsModal()" style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: #9aa0a6; cursor: pointer; font-size: 20px;">&times;</button>
+        
+        <h2 style="color: #fff; margin-bottom: 8px; font-size: 1.3rem;">⚙️ Settings</h2>
+        <p style="color: #9aa0a6; margin-bottom: 20px; font-size: 13px;">Manage your account</p>
+        
+        <!-- Settings Tabs -->
+        <div style="display: flex; gap: 0; margin-bottom: 20px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 3px;">
+          <button class="settings-tab active" data-settings-tab="profile" style="flex: 1; padding: 8px 10px; border: none; background: transparent; color: #9aa0a6; cursor: pointer; border-radius: 6px; font-weight: 500; font-size: 12px;">Profile</button>
+          <button class="settings-tab" data-settings-tab="password" style="flex: 1; padding: 8px 10px; border: none; background: transparent; color: #9aa0a6; cursor: pointer; border-radius: 6px; font-weight: 500; font-size: 12px;">Password</button>
+          <button class="settings-tab" data-settings-tab="email" style="flex: 1; padding: 8px 10px; border: none; background: transparent; color: #9aa0a6; cursor: pointer; border-radius: 6px; font-weight: 500; font-size: 12px;">Email</button>
+        </div>
+        
+        <div id="settings-message" class="hidden" style="padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px;"></div>
+        
+        <!-- Profile Tab -->
+        <div id="settings-profile" class="settings-content">
+          <!-- Avatar Upload -->
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+            <div id="settings-avatar-preview" style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 24px; color: white; overflow: hidden;">
+              <img id="settings-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;" />
+              <span id="settings-avatar-letter"></span>
+            </div>
+            <div style="flex: 1;">
+              <label for="avatar-upload" style="display: inline-block; padding: 8px 16px; background: rgba(255,255,255,0.1); color: #e8eaed; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                📷 Change Avatar
+              </label>
+              <input type="file" id="avatar-upload" accept="image/*" style="display: none;" onchange="handleAvatarSelect(this)" />
+              <p style="margin-top: 6px; font-size: 11px; color: #9aa0a6;">JPG, PNG (max 2MB)</p>
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label>First Name</label>
+              <input type="text" id="settings-firstname" placeholder="First name" />
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label>Last Name</label>
+              <input type="text" id="settings-lastname" placeholder="Last name" />
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="settings-username" placeholder="Username" />
+            <p style="margin-top: 4px; font-size: 11px; color: #9aa0a6;">⚠️ Changing username may affect your login</p>
+          </div>
+          
+          <button id="save-profile-btn" style="width: 100%; margin-top: 12px; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Save Profile</button>
+        </div>
+        
+        <!-- Change Password Tab -->
+        <div id="settings-password" class="settings-content hidden">
+          <div class="form-group">
+            <label>Current Password</label>
+            <input type="password" id="settings-current-password" placeholder="Enter current password" />
+          </div>
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="settings-new-password" placeholder="Enter new password" />
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" id="settings-confirm-password" placeholder="Confirm new password" />
+          </div>
+          <button id="change-password-btn" style="width: 100%; margin-top: 12px; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Change Password</button>
+        </div>
+        
+        <!-- Change Email Tab -->
+        <div id="settings-email" class="settings-content hidden">
+          <div class="form-group">
+            <label>Current Password</label>
+            <input type="password" id="settings-email-password" placeholder="Enter your password" />
+          </div>
+          <div class="form-group">
+            <label>New Email</label>
+            <input type="email" id="settings-new-email" placeholder="Enter new email" />
+          </div>
+          <button id="change-email-btn" style="width: 100%; margin-top: 12px; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Change Email</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Room Section -->
+    <div id="room-section" class="hidden">
+      <!-- Mobile Header (visible only on mobile) -->
+      <div id="mobile-header">
+        <div class="room-info-mobile">
+          <span id="current-room-id-mobile"></span>
+          <span style="color: #9aa0a6">|</span>
+          <span id="my-role-mobile" style="color: #9aa0a6"></span>
+        </div>
+      </div>
+
+      <div id="main-area">
+        <div class="sharing-indicator hidden" id="sharing-badge">
+          <span class="material-icons">screen_share</span>
+          <span>You are presenting</span>
+        </div>
+
+        <!-- Join Requests Toast Area -->
+        <div
+          id="join-requests-area"
+          style="
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        ></div>
+
+        <div id="video-grid">
+          <!-- Videos go here -->
+          <div id="video-container" style="display: contents"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <div id="sidebar">
+          <div class="sidebar-header">
+            <h3>People</h3>
+            <div
+              id="admin-controls"
+              class="hidden"
+              style="display: flex; align-items: center; gap: 8px"
+            >
+              <label
+                style="font-size: 12px; cursor: pointer; user-select: none"
+              >
+                <input
+                  type="checkbox"
+                  id="auto-approve-toggle"
+                  style="width: auto; transform: scale(1.2)"
+                />
+                Auto-Admit
+              </label>
+            </div>
+            <button
+              class="control-btn"
+              style="
+                width: 32px;
+                height: 32px;
+                background: none;
+                color: #5f6368;
+                margin-left: auto;
+              "
+              onclick="toggleSidebar()"
+            >
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+          <div id="participants-container"></div>
+        </div>
+      </div>
+
+      <!-- Subtitles (legacy, hidden) -->
+      <div id="subtitles-area" style="display:none"><div id="subtitles-inner"></div></div>
+
+      <!-- Host Speaking Indicator -->
+      <div id="host-speaking-indicator" class="hidden">
+        <div class="signal-light idle"></div>
+        <span class="signal-label">Listening</span>
+      </div>
+
+      <!-- Host Feedback Panel (only visible to host when clients are translating) -->
+      <div id="host-feedback-panel" class="hidden">
+        <div class="feedback-header">
+          <span class="material-icons">hearing</span>
+          <span>Live Translations</span>
+        </div>
+        <div id="active-translations"></div>
+      </div>
+
+      <!-- Client Audio Playing Indicator -->
+      <div id="client-audio-indicator" class="hidden">
+        <div class="audio-wave"><span></span></div>
+        <span>Playing translated audio...</span>
+      </div>
+
+      <!-- Scrollable Transcript Container -->
+      <div id="transcript-container">
+        <div id="transcript-header">
+          <span>Live Transcript</span>
+          <button onclick="toggleTranscript()" style="background:none;border:none;color:#9aa0a6;cursor:pointer;font-size:18px;">&times;</button>
+        </div>
+        <div id="transcript-entries"></div>
+      </div>
+
+      <!-- Footer Controls -->
+      <div id="controls-footer">
+        <div
+          class="room-info-desktop"
+          style="
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e8eaed;
+          "
+        >
+          <span
+            id="current-room-id"
+            style="font-weight: 500; margin-left: 20px"
+          ></span>
+          <span style="color: #9aa0a6">|</span>
+          <span id="my-role" style="font-size: 0.9em; color: #9aa0a6"></span>
+        </div>
+
+        <button id="mic-btn" class="control-btn" title="Microphone">
+          <span class="material-icons">mic_off</span>
+        </button>
+
+        <!-- Hidden by default, shown for admin -->
+        <button id="share-btn" class="control-btn hidden" title="Present now">
+          <span class="material-icons">present_to_all</span>
+        </button>
+
+        <button
+          id="people-btn"
+          class="control-btn"
+          title="People"
+          onclick="toggleSidebar()"
+        >
+          <span class="material-icons">people</span>
+        </button>
+
+        <!-- Transcript Toggle Button -->
+        <button
+          id="transcript-btn"
+          class="control-btn"
+          title="Toggle Transcript"
+          onclick="toggleTranscript()"
+        >
+          <span class="material-icons">closed_caption</span>
+        </button>
+
+        <!-- Audio Mode Toggle Button -->
+        <button
+          id="audio-mode-btn"
+          class="control-btn"
+          title="Toggle: Original voice / Translated only"
+          onclick="toggleAudioMode()"
+        >
+          <span class="material-icons">translate</span>
+        </button>
+
+        <button
+          class="control-btn danger"
+          style="width: 60px; border-radius: 30px"
+          onclick="location.reload()"
+        >
+          <span class="material-icons">call_end</span>
+        </button>
+
+        <div style="flex: 1"></div>
+      </div>
+    </div>
+
     <script>
-      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-          e.preventDefault();
-          document.querySelector(this.getAttribute('href')).scrollIntoView({
-            behavior: 'smooth'
+      function toggleSidebar() {
+        const sb = document.getElementById("sidebar");
+        sb.classList.toggle("open");
+      }
+
+      // ============================================
+      // Auth Tab Switching
+      // ============================================
+      function switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+        
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.add('hidden');
+        });
+        const tabContent = document.getElementById(`tab-${tabName}`);
+        if (tabContent) tabContent.classList.remove('hidden');
+        
+        // Clear error message
+        hideAuthMessage();
+      }
+
+      // Tab click handlers
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+          tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+        });
+
+        // Check session on load
+        checkAuthSession();
+      });
+
+      // ============================================
+      // Auth Message Display
+      // ============================================
+      function showAuthMessage(message, isError = true) {
+        const el = document.getElementById('auth-message');
+        el.textContent = message;
+        el.className = isError ? 'auth-message-error' : 'auth-message-success';
+        el.classList.remove('hidden');
+      }
+
+      function hideAuthMessage() {
+        const el = document.getElementById('auth-message');
+        el.classList.add('hidden');
+        el.className = 'hidden';
+      }
+
+      // ============================================
+      // Auth State Management
+      // ============================================
+      async function checkAuthSession() {
+        if (window.ApiService && window.ApiService.isAuthenticated()) {
+          const isValid = await window.ApiService.validateSession();
+          if (isValid) {
+            updateUIForAuthenticatedUser();
+            loadUserMeetings();
+          }
+        }
+      }
+
+      function updateUIForAuthenticatedUser() {
+        const user = window.ApiService.user;
+        if (!user) return;
+
+        // Show user info header
+        document.getElementById('user-info-header').classList.remove('hidden');
+        document.getElementById('user-avatar').textContent = (user.fullname || user.username || 'U').charAt(0).toUpperCase();
+        document.getElementById('user-fullname').textContent = user.fullname || user.username;
+        document.getElementById('user-username').textContent = '@' + user.username;
+
+        // Set username for joining (readonly, from profile)
+        const usernameInput = document.getElementById('username');
+        if (usernameInput) {
+          usernameInput.value = user.fullname || user.username;
+        }
+
+        // Show meetings section
+        document.getElementById('my-meetings-section').classList.remove('hidden');
+
+        // Show Join tab, hide login/register tabs for authenticated users
+        const joinTab = document.getElementById('join-tab-btn');
+        if (joinTab) joinTab.style.display = '';
+        
+        const authTabs = document.querySelector('.auth-tabs');
+        if (authTabs) {
+          authTabs.querySelectorAll('[data-tab="login"], [data-tab="register"]').forEach(tab => {
+            tab.style.display = 'none';
+          });
+        }
+        
+        // Switch to Join tab
+        switchTab('join');
+      }
+
+      function updateUIForUnauthenticatedUser() {
+        // Hide user info
+        document.getElementById('user-info-header').classList.add('hidden');
+        document.getElementById('my-meetings-section').classList.add('hidden');
+
+        // Clear username
+        const usernameInput = document.getElementById('username');
+        if (usernameInput) usernameInput.value = '';
+
+        // Hide Join tab, show login/register tabs
+        const joinTab = document.getElementById('join-tab-btn');
+        if (joinTab) joinTab.style.display = 'none';
+        
+        const authTabs = document.querySelector('.auth-tabs');
+        if (authTabs) {
+          authTabs.querySelectorAll('[data-tab="login"], [data-tab="register"]').forEach(tab => {
+            tab.style.display = '';
+          });
+        }
+
+        // Switch to login tab
+        switchTab('login');
+      }
+
+      // ============================================
+      // Login Handler
+      // ============================================
+      document.addEventListener('DOMContentLoaded', () => {
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+          loginBtn.addEventListener('click', async () => {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!username || !password) {
+              showAuthMessage('Please enter username and password');
+              return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Signing in...';
+
+            try {
+              await window.ApiService.login(username, password);
+              showAuthMessage('Login successful!', false);
+              updateUIForAuthenticatedUser();
+              loadUserMeetings();
+              
+              // Switch to join tab after brief delay
+              setTimeout(() => {
+                switchTab('join');
+                hideAuthMessage();
+              }, 1000);
+            } catch (error) {
+              showAuthMessage(error.message || 'Login failed. Please check your credentials.');
+            } finally {
+              loginBtn.disabled = false;
+              loginBtn.textContent = 'Sign In';
+            }
+          });
+        }
+      });
+
+      // ============================================
+      // Registration Handler
+      // ============================================
+      document.addEventListener('DOMContentLoaded', () => {
+        const registerBtn = document.getElementById('register-btn');
+        if (registerBtn) {
+          registerBtn.addEventListener('click', async () => {
+            const firstName = document.getElementById('reg-firstname').value.trim();
+            const lastName = document.getElementById('reg-lastname').value.trim();
+            const username = document.getElementById('reg-username').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+
+            // Validation
+            if (!firstName || !lastName || !username || !email || !password) {
+              showAuthMessage('Please fill in all fields');
+              return;
+            }
+
+            if (password !== confirmPassword) {
+              showAuthMessage('Passwords do not match');
+              return;
+            }
+
+            if (password.length < 6) {
+              showAuthMessage('Password must be at least 6 characters');
+              return;
+            }
+
+            registerBtn.disabled = true;
+            registerBtn.textContent = 'Creating account...';
+
+            try {
+              await window.ApiService.register({
+                first_name: firstName,
+                last_name: lastName,
+                username: username,
+                email: email,
+                password: password,
+                confirm_password: confirmPassword
+              });
+
+              showAuthMessage('Account created! Signing you in...', false);
+
+              // Auto-login after registration
+              await window.ApiService.login(username, password);
+              updateUIForAuthenticatedUser();
+              loadUserMeetings();
+              
+              setTimeout(() => {
+                switchTab('join');
+                hideAuthMessage();
+              }, 1000);
+            } catch (error) {
+              const msg = error.data 
+                ? Object.values(error.data).flat().join(', ')
+                : error.message || 'Registration failed';
+              showAuthMessage(msg);
+            } finally {
+              registerBtn.disabled = false;
+              registerBtn.textContent = 'Create Account';
+            }
+          });
+        }
+      });
+
+      // ============================================
+      // Logout Handler
+      // ============================================
+      document.addEventListener('DOMContentLoaded', () => {
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+          logoutBtn.addEventListener('click', () => {
+            window.ApiService.logout();
+            updateUIForUnauthenticatedUser();
+          });
+        }
+      });
+
+      // ============================================
+      // Settings Modal
+      // ============================================
+      let selectedAvatarFile = null;
+
+      function toggleSettingsModal() {
+        const modal = document.getElementById('settings-modal');
+        if (modal.classList.contains('hidden')) {
+          modal.classList.remove('hidden');
+          modal.style.display = 'flex';
+          
+          // Populate profile fields when opening
+          populateProfileForm();
+        } else {
+          modal.classList.add('hidden');
+          modal.style.display = 'none';
+          selectedAvatarFile = null;
+        }
+      }
+
+      function populateProfileForm() {
+        const user = window.ApiService?.user;
+        if (!user) return;
+
+        console.log('User data:', user); // Debug to see actual field names
+
+        // Avatar
+        const avatarImg = document.getElementById('settings-avatar-img');
+        const avatarLetter = document.getElementById('settings-avatar-letter');
+        
+        if (user.thumbnail || user.avatar) {
+          avatarImg.src = user.thumbnail || user.avatar;
+          avatarImg.style.display = 'block';
+          avatarLetter.style.display = 'none';
+        } else {
+          avatarImg.style.display = 'none';
+          avatarLetter.style.display = 'block';
+          avatarLetter.textContent = (user.fullname || user.username || 'U').charAt(0).toUpperCase();
+        }
+
+        // Get first/last name - check multiple possible field names
+        let firstName = user.first_name || user.firstName || '';
+        let lastName = user.last_name || user.lastName || '';
+        
+        // If first/last name are empty but fullname exists, try to split it
+        if ((!firstName || !lastName) && user.fullname) {
+          const nameParts = user.fullname.trim().split(/\s+/);
+          if (nameParts.length >= 2) {
+            firstName = firstName || nameParts[0];
+            lastName = lastName || nameParts.slice(1).join(' ');
+          } else if (nameParts.length === 1) {
+            firstName = firstName || nameParts[0];
+          }
+        }
+
+        // Fields
+        document.getElementById('settings-firstname').value = firstName;
+        document.getElementById('settings-lastname').value = lastName;
+        document.getElementById('settings-username').value = user.username || '';
+      }
+
+      function handleAvatarSelect(input) {
+        if (input.files && input.files[0]) {
+          const file = input.files[0];
+          
+          // Validate size (2MB)
+          if (file.size > 2 * 1024 * 1024) {
+            showSettingsMessage('Image size must be less than 2MB');
+            return;
+          }
+
+          selectedAvatarFile = file;
+
+          // Preview
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const avatarImg = document.getElementById('settings-avatar-img');
+            const avatarLetter = document.getElementById('settings-avatar-letter');
+            avatarImg.src = e.target.result;
+            avatarImg.style.display = 'block';
+            avatarLetter.style.display = 'none';
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+
+      // Save Profile Handler
+      document.addEventListener('DOMContentLoaded', () => {
+        const saveBtn = document.getElementById('save-profile-btn');
+        if (saveBtn) {
+          saveBtn.addEventListener('click', async () => {
+            const user = window.ApiService?.user;
+            if (!user) return;
+
+            const firstName = document.getElementById('settings-firstname').value.trim();
+            const lastName = document.getElementById('settings-lastname').value.trim();
+            const newUsername = document.getElementById('settings-username').value.trim();
+
+            if (!firstName || !lastName || !newUsername) {
+              showSettingsMessage('Please fill in all fields');
+              return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+              const currentUsername = user.username;
+
+              // If avatar is selected, use FormData
+              if (selectedAvatarFile) {
+                const formData = new FormData();
+                formData.append('avatar', selectedAvatarFile);
+                formData.append('first_name', firstName);
+                formData.append('last_name', lastName);
+                if (newUsername !== currentUsername) {
+                  formData.append('username', newUsername);
+                }
+                
+                await window.ApiService.updateUserWithAvatar(currentUsername, formData);
+              } else {
+                // Just update fields without avatar
+                const updateData = {
+                  first_name: firstName,
+                  last_name: lastName
+                };
+                if (newUsername !== currentUsername) {
+                  updateData.username = newUsername;
+                }
+                
+                await window.ApiService.updateUser(currentUsername, updateData);
+              }
+
+              showSettingsMessage('Profile updated successfully!', false);
+              selectedAvatarFile = null;
+
+              // Update UI
+              updateUIForAuthenticatedUser();
+              
+            } catch (error) {
+              const msg = error.data 
+                ? Object.values(error.data).flat().join(', ')
+                : error.message || 'Failed to update profile';
+              showSettingsMessage(msg);
+            } finally {
+              saveBtn.disabled = false;
+              saveBtn.textContent = 'Save Profile';
+            }
+          });
+        }
+      });
+
+      // Settings tab switching
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.settings-tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            const tabName = tab.dataset.settingsTab;
+            
+            // Update tab buttons
+            document.querySelectorAll('.settings-tab').forEach(t => {
+              t.classList.toggle('active', t.dataset.settingsTab === tabName);
+              t.style.background = t.dataset.settingsTab === tabName ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent';
+              t.style.color = t.dataset.settingsTab === tabName ? 'white' : '#9aa0a6';
+            });
+            
+            // Update content
+            document.querySelectorAll('.settings-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById(`settings-${tabName}`).classList.remove('hidden');
+            
+            // Clear message
+            document.getElementById('settings-message').classList.add('hidden');
           });
         });
       });
+
+      function showSettingsMessage(msg, isError = true) {
+        const el = document.getElementById('settings-message');
+        el.textContent = msg;
+        el.className = isError ? 'auth-message-error' : 'auth-message-success';
+        el.classList.remove('hidden');
+      }
+
+      // Change Password Handler
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('change-password-btn');
+        if (btn) {
+          btn.addEventListener('click', async () => {
+            const currentPassword = document.getElementById('settings-current-password').value;
+            const newPassword = document.getElementById('settings-new-password').value;
+            const confirmPassword = document.getElementById('settings-confirm-password').value;
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+              showSettingsMessage('Please fill in all fields');
+              return;
+            }
+
+            if (newPassword !== confirmPassword) {
+              showSettingsMessage('New passwords do not match');
+              return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Changing...';
+
+            try {
+              await window.ApiService.changePassword({
+                current_password: currentPassword,
+                new_password: newPassword,
+                confirm_new_password: confirmPassword
+              });
+              showSettingsMessage('Password changed successfully!', false);
+              
+              // Clear fields
+              document.getElementById('settings-current-password').value = '';
+              document.getElementById('settings-new-password').value = '';
+              document.getElementById('settings-confirm-password').value = '';
+            } catch (error) {
+              showSettingsMessage(error.message || 'Failed to change password');
+            } finally {
+              btn.disabled = false;
+              btn.textContent = 'Change Password';
+            }
+          });
+        }
+      });
+
+      // Change Email Handler
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('change-email-btn');
+        if (btn) {
+          btn.addEventListener('click', async () => {
+            const currentPassword = document.getElementById('settings-email-password').value;
+            const newEmail = document.getElementById('settings-new-email').value;
+
+            if (!currentPassword || !newEmail) {
+              showSettingsMessage('Please fill in all fields');
+              return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Changing...';
+
+            try {
+              await window.ApiService.changeEmail({
+                current_password: currentPassword,
+                email: newEmail
+              });
+              showSettingsMessage('Email changed successfully!', false);
+              
+              // Clear fields
+              document.getElementById('settings-email-password').value = '';
+              document.getElementById('settings-new-email').value = '';
+            } catch (error) {
+              showSettingsMessage(error.message || 'Failed to change email');
+            } finally {
+              btn.disabled = false;
+              btn.textContent = 'Change Email';
+            }
+          });
+        }
+      });
+
+      // ============================================
+      // Meetings Management
+      // ============================================
+      async function loadUserMeetings() {
+        if (!window.ApiService.isAuthenticated()) return;
+
+        const listEl = document.getElementById('meetings-list');
+        if (!listEl) return;
+
+        listEl.innerHTML = '<div style="color: #9aa0a6; font-size: 13px; text-align: center; padding: 20px;">Loading meetings...</div>';
+
+        try {
+          const response = await window.ApiService.getMeetings({ limit: 10 });
+          const meetings = response.results || [];
+
+          if (meetings.length === 0) {
+            listEl.innerHTML = '<div style="color: #9aa0a6; font-size: 13px; text-align: center; padding: 20px;">No meetings yet</div>';
+            return;
+          }
+
+          listEl.innerHTML = '';
+          meetings.forEach(meeting => {
+            const item = document.createElement('div');
+            item.className = 'meeting-item';
+            item.onclick = () => joinMeetingFromList(meeting);
+            
+            const date = new Date(meeting.start_at);
+            const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            item.innerHTML = `
+              <div class="meeting-item-name">${meeting.name}</div>
+              <div class="meeting-item-time">${dateStr}</div>
+            `;
+            listEl.appendChild(item);
+          });
+        } catch (error) {
+          listEl.innerHTML = '<div style="color: #f28b82; font-size: 13px; text-align: center; padding: 20px;">Failed to load meetings</div>';
+        }
+      }
+
+      function joinMeetingFromList(meeting) {
+        // Use meeting name as room ID (sanitized)
+        const roomId = meeting.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `meeting-${meeting.id}`;
+        document.getElementById('room-id').value = roomId;
+        switchTab('join');
+      }
+
+      // Create meeting handler
+      document.addEventListener('DOMContentLoaded', () => {
+        const createBtn = document.getElementById('create-meeting-btn');
+        if (createBtn) {
+          createBtn.addEventListener('click', async () => {
+            const name = prompt('Meeting name:');
+            if (!name) return;
+
+            try {
+              const meeting = await window.ApiService.createMeeting({
+                name: name,
+                description: '',
+                start_at: new Date().toISOString(),
+                participants: []
+              });
+              
+              // Use sanitized meeting name as room ID
+              const roomId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `meeting-${meeting.id}`;
+              alert(`Meeting created! Room ID: ${roomId}`);
+              loadUserMeetings();
+              
+              // Auto-fill room ID
+              document.getElementById('room-id').value = roomId;
+            } catch (error) {
+              alert('Failed to create meeting: ' + (error.message || 'Unknown error'));
+            }
+          });
+        }
+      });
     </script>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="api.js"></script>
+    <script src="mediasoup-client.js"></script>
+    <script src="client.js"></script>
   </body>
 </html>
