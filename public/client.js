@@ -1209,9 +1209,8 @@ function enterRoom(roomId, isAdmin) {
   } else {
       document.getElementById('share-btn').classList.add('hidden');
       
-      // Hide mic button for guests (participants can't speak for now)
-      // Functionality still exists if we want to enable it later
-      document.getElementById('mic-btn').classList.add('hidden');
+      // Participants can use mic and camera
+      // Only share screen is restricted to admin
       
       const adminControls = document.getElementById('admin-controls');
       if(adminControls) adminControls.classList.add('hidden');
