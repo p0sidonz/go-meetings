@@ -160,9 +160,12 @@ socket.on('consumer-closed', ({ consumerId }) => {
         consumer.close();
         videoConsumers.delete(consumerId);
         
-        // Remove video element from DOM
-        const videoEl = document.getElementById(`share-${consumerId}`);
-        if (videoEl) videoEl.remove();
+        // Remove video tile from DOM (check both old and new ID patterns)
+        const videoTile = document.getElementById(`video-tile-${consumerId}`);
+        if (videoTile) videoTile.remove();
+        
+        const shareEl = document.getElementById(`share-${consumerId}`);
+        if (shareEl) shareEl.remove();
     }
 });
 
@@ -192,10 +195,20 @@ socket.on('peer-left', (data) => {
           const leaveTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
           timeDiv.innerText = `Left at ${leaveTime}`;
       }
-      
-      // Move to bottom of list? Optional, but good for active users visibility
-      // participantsContainer.appendChild(el); 
   }
+  
+  // Remove any video tiles from this peer
+  document.querySelectorAll(`[id*="${data.id}"]`).forEach(el => {
+      if (el.classList.contains('video-tile')) {
+          el.remove();
+      }
+  });
+  
+  // Also close and remove any consumers for this peer
+  videoConsumers.forEach((consumer, consumerId) => {
+      const tile = document.getElementById(`video-tile-${consumerId}`);
+      if (tile) tile.remove();
+  });
 });
 
 socket.on('subtitle', async (data) => {
@@ -1410,3 +1423,133 @@ window.toggleAudioMode = () => {
     
     console.log('Audio mode:', translatedVoiceOnly ? 'Translated TTS only' : 'Original voice');
 };
+
+// ============================================
+// Chat Messaging
+// ============================================
+let unreadCount = 0;
+let currentSidebarTab = 'people';
+
+// Switch sidebar tabs
+window.switchSidebarTab = (tabName) => {
+    currentSidebarTab = tabName;
+    
+    // Update tab buttons
+    document.querySelectorAll('.sidebar-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+    
+    // Update tab content
+    document.querySelectorAll('.sidebar-tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    const activeContent = document.getElementById(`sidebar-${tabName}`);
+    if (activeContent) activeContent.classList.remove('hidden');
+    
+    // Clear unread badge when switching to chat
+    if (tabName === 'chat') {
+        unreadCount = 0;
+        updateUnreadBadge();
+    }
+};
+
+// Send chat message
+window.sendChatMessage = () => {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    
+    if (!text) return;
+    
+    const roomId = document.getElementById('current-room-id')?.innerText;
+    if (!roomId) return;
+    
+    socket.emit('chat-message', { 
+        roomId, 
+        text,
+        name: usernameInput.value
+    });
+    
+    // Add message to local chat (optimistic)
+    addChatMessage({
+        name: 'You',
+        text,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isSelf: true
+    });
+    
+    // Clear input
+    input.value = '';
+};
+
+// Receive chat message from server
+socket.on('chat-message', (data) => {
+    // Don't show own messages again (we already added them optimistically)
+    if (data.senderId === socket.id) return;
+    
+    addChatMessage({
+        name: data.name,
+        text: data.text,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isSelf: false
+    });
+    
+    // Show unread badge if chat tab not active
+    if (currentSidebarTab !== 'chat') {
+        unreadCount++;
+        updateUnreadBadge();
+    }
+});
+
+// Add message to chat UI
+function addChatMessage({ name, text, time, isSelf }) {
+    const messagesContainer = document.getElementById('chat-messages');
+    if (!messagesContainer) return;
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${isSelf ? 'sent' : 'received'}`;
+    
+    msgDiv.innerHTML = `
+        <div class="sender-name">${name}</div>
+        <div class="message-text">${escapeHtml(text)}</div>
+        <div class="message-time">${time}</div>
+    `;
+    
+    messagesContainer.appendChild(msgDiv);
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Update unread badge
+function updateUnreadBadge() {
+    const badge = document.getElementById('chat-unread-badge');
+    if (!badge) return;
+    
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Chat input enter key handler
+document.addEventListener('DOMContentLoaded', () => {
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+    }
+});

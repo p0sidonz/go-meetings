@@ -274,5 +274,16 @@ io.on('connection', (socket) => {
              callback({ error: 'Unauthorized' });
         }
     });
+
+    // Chat message handler
+    socket.on('chat-message', ({ roomId, text, name }) => {
+        // Broadcast chat message to everyone in the room
+        room.broadcast('chat-message', {
+            senderId: socket.id,
+            name: name,
+            text: text,
+            timestamp: Date.now()
+        });
+    });
   });
 });
