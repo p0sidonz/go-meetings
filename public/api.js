@@ -338,8 +338,65 @@ const ApiService = {
         return await this._request(`/meetings/meets/${id}/`, {
             method: 'DELETE'
         });
+    },
+
+    // ============================================
+    // Participants
+    // ============================================
+
+    /**
+     * Get participants for a meeting
+     * @param {number} meetingId
+     * @returns {Promise<array>} List of participants
+     */
+    async getParticipants(meetingId) {
+        return await this._request(`/meetings/meets/${meetingId}/list_participants/`);
+    },
+
+    /**
+     * Add participant to a meeting
+     * @param {number} meetingId
+     * @param {number} userId - User ID to add
+     * @returns {Promise<object>} Created participant
+     */
+    async addParticipant(meetingId, userId) {
+        return await this._request(`/meetings/meets/${meetingId}/add_participants/`, {
+            method: 'POST',
+            body: JSON.stringify({ user: userId })
+        });
+    },
+
+    /**
+     * Remove participant from meeting
+     * @param {number} participantId
+     */
+    async removeParticipant(participantId) {
+        return await this._request(`/meetings/participants/${participantId}/`, {
+            method: 'DELETE'
+        });
+    },
+
+    /**
+     * Update participant acceptance status
+     * @param {number} participantId
+     * @param {boolean} accepted - true = attending, false = not attending
+     */
+    async updateParticipantAcceptance(participantId, accepted) {
+        return await this._request(`/meetings/participants/${participantId}/accepted/`, {
+            method: 'POST',
+            body: JSON.stringify({ accepted })
+        });
+    },
+
+    /**
+     * Search users for adding as participants
+     * @param {string} query - Search query
+     * @returns {Promise<{results: array}>}
+     */
+    async searchUsers(query) {
+        return await this._request(`/accounts/users/?search=${encodeURIComponent(query)}`);
     }
-};
+}
 
 // Export for module systems, also make available globally
 if (typeof module !== 'undefined' && module.exports) {

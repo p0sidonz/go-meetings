@@ -35,6 +35,9 @@ let device;
 let sendTransport;
 let recvTransport;
 let audioProducer;
+let cameraProducer; // For webcam video
+let isCameraOn = false;
+let cameraConsumers = new Map(); // consumerId -> consumer (for webcam video)
 let consumerTransports = [];
 let audioConsumers = new Map(); // consumerId -> consumer
 
@@ -496,6 +499,144 @@ async function toggleMic() {
     }
 }
 
+// Camera Button
+const cameraBtn = document.getElementById('camera-btn');
+let cameraStream = null; // Store stream reference for cleanup
+
+if (cameraBtn) {
+    cameraBtn.addEventListener('click', toggleCamera);
+}
+
+async function toggleCamera() {
+    if (!cameraBtn) return;
+    
+    if (isCameraOn) {
+        // Stop Camera
+        
+        // First stop the media tracks
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => {
+                track.stop();
+            });
+            cameraStream = null;
+        }
+        
+        // Then close the producer
+        if (cameraProducer) {
+            const producerId = cameraProducer.id;
+            cameraProducer.close();
+            cameraProducer = null;
+            socket.emit('close-producer', { producerId });
+        }
+        
+        // Remove local preview
+        const localPreview = document.getElementById('local-camera-preview');
+        if (localPreview) localPreview.remove();
+        
+        isCameraOn = false;
+        cameraBtn.innerHTML = '<span class="material-icons">videocam_off</span>';
+        cameraBtn.classList.remove('active');
+    } else {
+        // Start Camera
+        try {
+            await produceCamera();
+            isCameraOn = true;
+            cameraBtn.innerHTML = '<span class="material-icons" style="color:#8ab4f8">videocam</span>';
+            cameraBtn.classList.add('active');
+        } catch (e) {
+            console.error('Failed to produce camera:', e);
+            alert(`Camera access failed: ${e.message}\nPlease ensure you have allowed camera permissions and are using HTTPS.`);
+        }
+    }
+}
+
+async function produceCamera() {
+    if (!device.canProduce('video')) {
+        console.error('Device cannot produce video');
+        throw new Error('Device cannot produce video');
+    }
+    
+    if (!sendTransport) {
+        throw new Error('Send Transport not ready');
+    }
+    
+    // Clean up any existing camera resources first
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    if (cameraProducer) {
+        cameraProducer.close();
+        cameraProducer = null;
+    }
+    
+    // Remove any existing preview
+    const existingPreview = document.getElementById('local-camera-preview');
+    if (existingPreview) existingPreview.remove();
+    
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ 
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user'
+            }
+        });
+    } catch (err) {
+        console.error('getUserMedia (camera) failed:', err);
+        throw err;
+    }
+
+    const track = cameraStream.getVideoTracks()[0];
+    
+    // Create producer with appData to distinguish from screen share
+    cameraProducer = await sendTransport.produce({ 
+        track,
+        appData: { type: 'camera' }
+    });
+    
+    // Add local preview
+    const videoContainer = document.getElementById('video-container');
+    
+    const tile = document.createElement('div');
+    tile.id = 'local-camera-preview';
+    tile.className = 'video-tile local-preview local';
+    
+    const video = document.createElement('video');
+    video.srcObject = cameraStream;
+    video.playsInline = true;
+    video.autoplay = true;
+    video.muted = true; // Mute local preview
+    video.style.transform = 'scaleX(-1)'; // Mirror for self-view
+    
+    const label = document.createElement('div');
+    label.className = 'video-label';
+    label.innerHTML = '<span class="material-icons">person</span> You';
+    
+    tile.appendChild(video);
+    tile.appendChild(label);
+    videoContainer.appendChild(tile);
+
+    // Handle track ending (e.g., user revokes permission)
+    track.onended = () => {
+        console.log('Camera track ended externally');
+        if (isCameraOn) {
+            isCameraOn = false;
+            cameraBtn.innerHTML = '<span class="material-icons">videocam_off</span>';
+            cameraBtn.classList.remove('active');
+            const preview = document.getElementById('local-camera-preview');
+            if (preview) preview.remove();
+        }
+    };
+    
+    cameraProducer.on('trackended', () => {
+        console.log('Camera producer track ended');
+    });
+    
+    cameraProducer.on('transportclose', () => {
+        console.log('Camera transport closed');
+    });
+}
 
 function startRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -828,19 +969,34 @@ async function consumeVideo(producerId, peerId) {
         
         videoConsumers.set(consumer.id, consumer);
         
-        // Create video element
+        // Get peer name from participants list
+        let peerName = 'Participant';
+        const peerEl = document.getElementById(`peer-${peerId}`);
+        if (peerEl) {
+            const nameEl = peerEl.querySelector('.peer-name');
+            if (nameEl) peerName = nameEl.innerText;
+        }
+        
+        // Create video tile
         const { track } = consumer;
         const stream = new MediaStream([track]);
+        
+        const tile = document.createElement('div');
+        tile.id = `video-tile-${consumer.id}`;
+        tile.className = 'video-tile';
+        
         const video = document.createElement('video');
         video.srcObject = stream;
-        video.id = `share-${consumer.id}`; 
         video.playsInline = true;
         video.autoplay = true;
-        video.style.maxWidth = '100%';
-        video.style.border = '2px solid #ccc';
-        video.style.borderRadius = '8px';
         
-        videoContainer.appendChild(video);
+        const label = document.createElement('div');
+        label.className = 'video-label';
+        label.innerHTML = `<span class="material-icons">person</span> ${peerName}`;
+        
+        tile.appendChild(video);
+        tile.appendChild(label);
+        videoContainer.appendChild(tile);
         
         // Resume if needed (server sends paused: true)
         socket.emit('resume', { consumerId: consumer.id }, () => {
@@ -848,11 +1004,11 @@ async function consumeVideo(producerId, peerId) {
         });
         
         consumer.on('transportclose', () => {
-           video.remove();
+           tile.remove();
         });
         
         consumer.on('producerclose', () => {
-           video.remove(); 
+           tile.remove(); 
         });
     });
 }
