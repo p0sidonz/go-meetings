@@ -219,6 +219,7 @@ socket.on('subtitle', async (data) => {
     let displayText = data.text;
     let langLabel = data.lang;
     let wasTranslated = false;
+    let ttsAudio = null;
 
     // Only translate if this is from the HOST
     if (data.isHost) {
@@ -235,8 +236,10 @@ socket.on('subtitle', async (data) => {
                 socket.emit('translation-status', { status: 'translating' });
                 
                 try {
-                    const translated = await translateText(data.text, sourceLang, myLang);
-                    displayText = translated;
+                    // Use combined translate + TTS endpoint for efficiency
+                    const result = await translateAndSpeak(data.text, sourceLang, myLang);
+                    displayText = result.translatedText;
+                    ttsAudio = result.audio;
                     langLabel = `${sourceLang}→${myLang}`;
                     wasTranslated = true;
                 } catch (e) {
@@ -245,7 +248,8 @@ socket.on('subtitle', async (data) => {
             }
             
             // TTS for host speech (only when translate mode is active)
-            speakTextWithFeedback(displayText, myLangFull, wasTranslated);
+            // Pass server TTS audio if available
+            speakTextWithFeedback(displayText, myLangFull, wasTranslated, ttsAudio);
         } else {
             // Not in translation mode, reset after brief speaking indicator
             clearTimeout(hostSpeakingTimeout);
@@ -324,50 +328,48 @@ function speakText(text, langCode) {
 }
 
 // Enhanced speakText with feedback to server and visual indicator
-function speakTextWithFeedback(text, langCode, wasTranslated) {
-    if (!window.speechSynthesis) return;
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = langCode;
-    
-    // Use cached voices or fetch fresh
-    const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
-    
-    // Priority 1: Exact match
-    let voice = voices.find(v => v.lang === langCode);
-    
-    // Priority 2: Language prefix match
-    if (!voice) {
-        const shortLang = langCode.split('-')[0];
-        voice = voices.find(v => v.lang.startsWith(shortLang));
+// Now supports server-side Piper TTS via base64 audio
+async function speakTextWithFeedback(text, langCode, wasTranslated, base64Audio = null) {
+    // Pause speech recognition while TTS is playing
+    if (recognition && isMicOn) {
+        recognition.stop();
+        window.isSpeaking = true;
     }
     
-    if (voice) {
-        utterance.voice = voice;
+    // Show playing indicator
+    updateHostSpeakingIndicator('playing');
+    showClientAudioIndicator(true);
+    
+    // Send playing status to server
+    if (wasTranslated) {
+        socket.emit('translation-status', { status: 'playing' });
     }
     
-    utterance.rate = 1.0;
+    console.log('TTS with feedback starting, using server TTS:', !!base64Audio);
     
-    utterance.onstart = () => {
-        console.log('TTS with feedback started');
-        if (recognition && isMicOn) {
-            recognition.stop();
-            window.isSpeaking = true;
+    try {
+        if (base64Audio && useServerTTS) {
+            // Use server-side Piper TTS audio
+            await playBase64Audio(base64Audio);
+        } else {
+            // Fallback to browser SpeechSynthesis
+            await speakWithBrowserTTS(text, langCode);
         }
-        
-        // Show playing indicator for client
-        updateHostSpeakingIndicator('playing');
-        showClientAudioIndicator(true);
-        
-        // Send playing status to server
-        if (wasTranslated) {
-            socket.emit('translation-status', { status: 'playing' });
+    } catch (err) {
+        console.error('TTS playback error:', err);
+        // Try browser fallback if server TTS fails
+        if (base64Audio) {
+            try {
+                await speakWithBrowserTTS(text, langCode);
+            } catch (e) {
+                console.error('Browser TTS fallback also failed:', e);
+            }
         }
-    };
-    
-    utterance.onend = () => {
+    } finally {
         console.log('TTS with feedback ended');
         window.isSpeaking = false;
+        
+        // Resume speech recognition
         if (recognition && isMicOn) {
             try { recognition.start(); } catch(e) {}
         }
@@ -380,17 +382,42 @@ function speakTextWithFeedback(text, langCode, wasTranslated) {
         if (wasTranslated) {
             socket.emit('translation-status', { status: 'done' });
         }
-    };
-    
-    utterance.onerror = () => {
-        updateHostSpeakingIndicator('idle');
-        showClientAudioIndicator(false);
-        if (wasTranslated) {
-            socket.emit('translation-status', { status: 'done' });
-        }
-    };
+    }
+}
 
-    window.speechSynthesis.speak(utterance);
+// Browser SpeechSynthesis TTS (fallback)
+function speakWithBrowserTTS(text, langCode) {
+    return new Promise((resolve, reject) => {
+        if (!window.speechSynthesis) {
+            reject(new Error('SpeechSynthesis not available'));
+            return;
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = langCode;
+        
+        // Use cached voices or fetch fresh
+        const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
+        
+        // Priority 1: Exact match
+        let voice = voices.find(v => v.lang === langCode);
+        
+        // Priority 2: Language prefix match
+        if (!voice) {
+            const shortLang = langCode.split('-')[0];
+            voice = voices.find(v => v.lang.startsWith(shortLang));
+        }
+        
+        if (voice) {
+            utterance.voice = voice;
+        }
+        
+        utterance.rate = 1.0;
+        utterance.onend = () => resolve();
+        utterance.onerror = (e) => reject(e);
+        
+        window.speechSynthesis.speak(utterance);
+    });
 }
 
 // Show/hide client audio playing indicator
@@ -445,21 +472,24 @@ function updateHostFeedbackPanel(data) {
     }
 }
 
+// ML Service configuration
+const ML_SERVICE_URL = window.ML_SERVICE_URL || 'https://ml-service.iankit.me';
+let useServerTTS = true; // Use Piper TTS from ML service
+
 async function translateText(text, source, target) {
-    // Using self-hosted LibreTranslate API
-    const url = 'https://translate-api.iankit.me/translate';
+    // Using self-hosted NLLB-200 translation via ML service
+    const url = `${ML_SERVICE_URL}/translate`;
     
     try {
         const res = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: new URLSearchParams({
-                q: text,
+            body: JSON.stringify({
+                text: text,
                 source: source,
-                target: target,
-                api_key: '6fe28963-c1e1-451b-91a4-985e835bc69c'
+                target: target
             })
         });
         
@@ -471,8 +501,70 @@ async function translateText(text, source, target) {
         return text;
     } catch (err) {
         console.error('Translation error:', err);
+        // Fallback to original text if ML service is unavailable
         return text;
     }
+}
+
+// Translate text and get TTS audio in one request (more efficient)
+async function translateAndSpeak(text, source, target) {
+    const url = `${ML_SERVICE_URL}/translate-and-speak`;
+    
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text,
+                source: source,
+                target: target
+            })
+        });
+        
+        const data = await res.json();
+        return {
+            translatedText: data.translatedText || text,
+            audio: data.audio // Base64 encoded WAV audio (null if TTS unavailable)
+        };
+    } catch (err) {
+        console.error('Translate-and-speak error:', err);
+        return { translatedText: text, audio: null };
+    }
+}
+
+// Play audio from base64-encoded WAV data
+function playBase64Audio(base64Audio) {
+    return new Promise((resolve, reject) => {
+        try {
+            // Decode base64 to binary
+            const binaryString = atob(base64Audio);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            // Create blob and audio element
+            const blob = new Blob([bytes], { type: 'audio/wav' });
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            
+            audio.onended = () => {
+                URL.revokeObjectURL(audioUrl);
+                resolve();
+            };
+            
+            audio.onerror = (e) => {
+                URL.revokeObjectURL(audioUrl);
+                reject(e);
+            };
+            
+            audio.play().catch(reject);
+        } catch (err) {
+            reject(err);
+        }
+    });
 }
 
 micBtn.addEventListener('click', toggleMic);

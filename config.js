@@ -4,6 +4,12 @@ module.exports = {
   sslCrt: "server.cert",
   sslKey: "server.key",
 
+  // ML Translation Service (NLLB + Piper TTS)
+  mlService: {
+    url: process.env.ML_SERVICE_URL || "https://ml-service.iankit.me",
+    enabled: process.env.ML_SERVICE_ENABLED !== "false",
+  },
+
   mediasoup: {
     // Worker settings
     numWorkers: Object.keys(require("os").cpus()).length,

@@ -11,4 +11,5 @@ services:
     environment:
       - NODE_ENV=production
       - ANNOUNCED_IP=77.42.73.95
-      # - PORT=3000
+      # ML Service is deployed separately
+      # - ML_SERVICE_URL=https://ml-service.iankit.me
