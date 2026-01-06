@@ -481,6 +481,23 @@
         text-align: center;
       }
 
+      .unread-dot {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 10px;
+        height: 10px;
+        background: #ea4335;
+        border-radius: 50%;
+        border: 2px solid #1e1e1e;
+        animation: unread-pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes unread-pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.2); opacity: 0.8; }
+      }
+
       #participants-container {
         padding: 10px;
         overflow-y: auto;
@@ -743,6 +760,140 @@
         background: rgba(234, 67, 53, 0.3);
         color: white;
         border-color: rgba(234, 67, 53, 0.5);
+      }
+
+      .control-btn.recording {
+        background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 0 20px rgba(234, 67, 53, 0.6);
+        animation: recording-pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes recording-pulse {
+        0%, 100% { box-shadow: 0 0 20px rgba(234, 67, 53, 0.6); }
+        50% { box-shadow: 0 0 30px rgba(234, 67, 53, 0.9); }
+      }
+
+      /* Recording Indicator */
+      #recording-indicator {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(234, 67, 53, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 1000;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(234, 67, 53, 0.4);
+      }
+
+      #recording-indicator .recording-dot {
+        width: 10px;
+        height: 10px;
+        background: white;
+        border-radius: 50%;
+        animation: recording-dot-pulse 1s ease-in-out infinite;
+      }
+
+      @keyframes recording-dot-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
+      }
+
+      /* Download Recording Modal */
+      #download-recording-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        backdrop-filter: blur(5px);
+      }
+
+      .download-modal-content {
+        background: linear-gradient(180deg, #2d2d30 0%, #1e1e1e 100%);
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+
+      .download-modal-icon {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+      }
+
+      .download-modal-icon .material-icons {
+        font-size: 32px;
+        color: white;
+      }
+
+      .download-modal-content h3 {
+        color: #e8eaed;
+        font-size: 1.3rem;
+        margin-bottom: 12px;
+      }
+
+      .download-modal-content p {
+        color: #9aa0a6;
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+
+      .download-modal-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      .download-modal-buttons button {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+      }
+
+      .btn-download {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-download:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-dismiss {
+        background: rgba(255, 255, 255, 0.1);
+        color: #9aa0a6;
+      }
+
+      .btn-dismiss:hover {
+        background: rgba(255, 255, 255, 0.15);
       }
 
       .material-icons {
@@ -2516,6 +2667,11 @@
           <span class="material-icons">videocam_off</span>
         </button>
 
+        <!-- Recording Button -->
+        <button id="record-btn" class="control-btn" title="Record meeting" onclick="toggleRecording()">
+          <span class="material-icons">fiber_manual_record</span>
+        </button>
+
         <!-- Hidden by default, shown for admin -->
         <button id="share-btn" class="control-btn hidden" title="Present now">
           <span class="material-icons">present_to_all</span>
@@ -2528,6 +2684,7 @@
           onclick="toggleSidebar()"
         >
           <span class="material-icons">people</span>
+          <span id="people-unread-dot" class="unread-dot hidden"></span>
         </button>
 
         <!-- Transcript Toggle Button -->
@@ -2559,6 +2716,30 @@
         </button>
 
         <div style="flex: 1"></div>
+      </div>
+
+      <!-- Recording Indicator -->
+      <div id="recording-indicator" class="hidden">
+        <span class="recording-dot"></span>
+        <span id="recording-time">REC 00:00</span>
+      </div>
+    </div>
+
+    <!-- Download Recording Modal -->
+    <div id="download-recording-modal" class="hidden">
+      <div class="download-modal-content">
+        <div class="download-modal-icon">
+          <span class="material-icons">videocam</span>
+        </div>
+        <h3>Recording Ready!</h3>
+        <p id="recording-info">Your meeting recording is ready to download.</p>
+        <div class="download-modal-buttons">
+          <button class="btn-dismiss" onclick="dismissDownloadModal()">Dismiss</button>
+          <button class="btn-download" id="download-recording-btn">
+            <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 4px;">download</span>
+            Download
+          </button>
+        </div>
       </div>
     </div>
 

@@ -1627,13 +1627,24 @@ function addChatMessage({ name, text, time, isSelf }) {
 // Update unread badge
 function updateUnreadBadge() {
     const badge = document.getElementById('chat-unread-badge');
-    if (!badge) return;
+    const peopleDot = document.getElementById('people-unread-dot');
     
     if (unreadCount > 0) {
-        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-        badge.classList.remove('hidden');
+        if (badge) {
+            badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+            badge.classList.remove('hidden');
+        }
+        // Also show dot on people button
+        if (peopleDot) {
+            peopleDot.classList.remove('hidden');
+        }
     } else {
-        badge.classList.add('hidden');
+        if (badge) {
+            badge.classList.add('hidden');
+        }
+        if (peopleDot) {
+            peopleDot.classList.add('hidden');
+        }
     }
 }
 
@@ -1656,3 +1667,451 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ============================================
+// Meeting Recording
+// ============================================
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+let recordingStartTime = null;
+let recordingTimerInterval = null;
+let recordingBlob = null;
+
+// Toggle recording state
+function toggleRecording() {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+}
+
+// Start recording the meeting
+async function startRecording() {
+    try {
+        // Collect all available streams
+        const streams = [];
+        
+        // Get local audio from microphone (if available)
+        if (audioProducer && audioProducer.track) {
+            const audioStream = new MediaStream([audioProducer.track]);
+            streams.push(audioStream);
+        }
+        
+        // Get local camera video (if available)
+        if (cameraProducer && cameraProducer.track) {
+            const videoStream = new MediaStream([cameraProducer.track]);
+            streams.push(videoStream);
+        }
+        
+        // Get remote audio streams
+        audioConsumers.forEach((consumer) => {
+            if (consumer.track) {
+                const remoteAudioStream = new MediaStream([consumer.track]);
+                streams.push(remoteAudioStream);
+            }
+        });
+        
+        // Get remote video streams
+        videoConsumers.forEach((consumer) => {
+            if (consumer.track) {
+                const remoteVideoStream = new MediaStream([consumer.track]);
+                streams.push(remoteVideoStream);
+            }
+        });
+        
+        // Also get camera consumer streams
+        cameraConsumers.forEach((consumer) => {
+            if (consumer.track) {
+                const remoteCameraStream = new MediaStream([consumer.track]);
+                streams.push(remoteCameraStream);
+            }
+        });
+        
+        // If no streams available, try to get user media
+        if (streams.length === 0) {
+            console.warn('No active streams to record. Requesting microphone access...');
+            try {
+                const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                streams.push(micStream);
+            } catch (e) {
+                console.error('Failed to get microphone for recording:', e);
+                alert('No audio/video streams available to record. Please turn on your microphone or camera first.');
+                return;
+            }
+        }
+        
+        // Combine all streams using AudioContext for audio mixing
+        const combinedStream = await combineStreams(streams);
+        
+        // Create MediaRecorder
+        const options = { mimeType: 'video/webm;codecs=vp9,opus' };
+        
+        // Check if the preferred mime type is supported
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'video/webm;codecs=vp8,opus';
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'video/webm';
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/webm';
+                }
+            }
+        }
+        
+        console.log('Recording with mime type:', options.mimeType);
+        
+        mediaRecorder = new MediaRecorder(combinedStream, options);
+        recordedChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = () => {
+            // Create blob from recorded chunks
+            const mimeType = mediaRecorder.mimeType || 'video/webm';
+            recordingBlob = new Blob(recordedChunks, { type: mimeType });
+            console.log('Recording stopped. Blob size:', recordingBlob.size);
+            
+            // Show download modal
+            showDownloadModal();
+        };
+        
+        mediaRecorder.onerror = (event) => {
+            console.error('MediaRecorder error:', event.error);
+            stopRecording();
+            alert('Recording error: ' + event.error.message);
+        };
+        
+        // Start recording
+        mediaRecorder.start(1000); // Collect data every second
+        isRecording = true;
+        recordingStartTime = Date.now();
+        
+        // Update UI
+        const recordBtn = document.getElementById('record-btn');
+        if (recordBtn) {
+            recordBtn.classList.add('recording');
+            recordBtn.title = 'Stop recording';
+        }
+        
+        // Show recording indicator
+        const indicator = document.getElementById('recording-indicator');
+        if (indicator) {
+            indicator.classList.remove('hidden');
+        }
+        
+        // Start timer
+        startRecordingTimer();
+        
+        console.log('Recording started');
+        
+    } catch (error) {
+        console.error('Failed to start recording:', error);
+        alert('Failed to start recording: ' + error.message);
+    }
+}
+
+// Stop recording
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        
+        // Stop all tracks in the combined stream
+        if (mediaRecorder.stream) {
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+    }
+    
+    isRecording = false;
+    
+    // Stop canvas animation
+    if (recordingAnimationId) {
+        cancelAnimationFrame(recordingAnimationId);
+        recordingAnimationId = null;
+    }
+    recordingCanvas = null;
+    recordingCanvasCtx = null;
+    
+    // Update UI
+    const recordBtn = document.getElementById('record-btn');
+    if (recordBtn) {
+        recordBtn.classList.remove('recording');
+        recordBtn.title = 'Record meeting';
+    }
+    
+    // Hide recording indicator
+    const indicator = document.getElementById('recording-indicator');
+    if (indicator) {
+        indicator.classList.add('hidden');
+    }
+    
+    // Stop timer
+    stopRecordingTimer();
+    
+    console.log('Recording stopped');
+}
+
+// Combine multiple streams into one with canvas composite for video
+let recordingCanvas = null;
+let recordingCanvasCtx = null;
+let recordingAnimationId = null;
+
+async function combineStreams(streams) {
+    const audioContext = new AudioContext();
+    const destination = audioContext.createMediaStreamDestination();
+    
+    const videoElements = [];
+    
+    // Process each stream
+    for (const stream of streams) {
+        // Handle audio tracks - mix all audio together
+        const audioTracks = stream.getAudioTracks();
+        for (const track of audioTracks) {
+            try {
+                const source = audioContext.createMediaStreamSource(new MediaStream([track]));
+                source.connect(destination);
+            } catch (e) {
+                console.warn('Failed to add audio track:', e);
+            }
+        }
+        
+        // Handle video tracks - collect all for canvas composite
+        const videoTracks = stream.getVideoTracks();
+        for (const track of videoTracks) {
+            const video = document.createElement('video');
+            video.srcObject = new MediaStream([track]);
+            video.muted = true;
+            video.playsInline = true;
+            video.autoplay = true;
+            await video.play().catch(e => console.warn('Video play failed:', e));
+            videoElements.push(video);
+        }
+    }
+    
+    // Create combined stream
+    const combinedStream = new MediaStream();
+    
+    // Add mixed audio
+    const audioTracks = destination.stream.getAudioTracks();
+    audioTracks.forEach(track => combinedStream.addTrack(track));
+    
+    // Create canvas composite for video if we have video streams
+    if (videoElements.length > 0) {
+        // Create canvas
+        recordingCanvas = document.createElement('canvas');
+        recordingCanvas.width = 1280;
+        recordingCanvas.height = 720;
+        recordingCanvasCtx = recordingCanvas.getContext('2d');
+        
+        // Calculate grid layout
+        const cols = Math.ceil(Math.sqrt(videoElements.length));
+        const rows = Math.ceil(videoElements.length / cols);
+        const cellWidth = recordingCanvas.width / cols;
+        const cellHeight = recordingCanvas.height / rows;
+        
+        // Start drawing loop
+        function drawFrame() {
+            // Fill background
+            recordingCanvasCtx.fillStyle = '#1e1e1e';
+            recordingCanvasCtx.fillRect(0, 0, recordingCanvas.width, recordingCanvas.height);
+            
+            // Draw each video in grid
+            videoElements.forEach((video, index) => {
+                const col = index % cols;
+                const row = Math.floor(index / cols);
+                const x = col * cellWidth;
+                const y = row * cellHeight;
+                
+                // Calculate aspect-fit dimensions
+                const videoAspect = video.videoWidth / video.videoHeight || 16/9;
+                const cellAspect = cellWidth / cellHeight;
+                
+                let drawWidth, drawHeight, drawX, drawY;
+                
+                if (videoAspect > cellAspect) {
+                    // Video is wider - fit to width
+                    drawWidth = cellWidth;
+                    drawHeight = cellWidth / videoAspect;
+                    drawX = x;
+                    drawY = y + (cellHeight - drawHeight) / 2;
+                } else {
+                    // Video is taller - fit to height
+                    drawHeight = cellHeight;
+                    drawWidth = cellHeight * videoAspect;
+                    drawX = x + (cellWidth - drawWidth) / 2;
+                    drawY = y;
+                }
+                
+                try {
+                    if (video.readyState >= 2) {
+                        recordingCanvasCtx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+                    }
+                } catch (e) {
+                    // Video frame not ready, skip
+                }
+                
+                // Draw border between cells
+                recordingCanvasCtx.strokeStyle = '#333';
+                recordingCanvasCtx.lineWidth = 2;
+                recordingCanvasCtx.strokeRect(x, y, cellWidth, cellHeight);
+            });
+            
+            // Continue animation if still recording
+            if (isRecording) {
+                recordingAnimationId = requestAnimationFrame(drawFrame);
+            }
+        }
+        
+        // Start drawing
+        drawFrame();
+        
+        // Capture canvas stream at 30fps
+        const canvasStream = recordingCanvas.captureStream(30);
+        canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
+        
+        console.log(`Recording ${videoElements.length} video streams in ${cols}x${rows} grid`);
+    } else {
+        console.log('No video streams to record');
+    }
+    
+    return combinedStream;
+}
+
+// Recording timer
+function startRecordingTimer() {
+    recordingTimerInterval = setInterval(() => {
+        const elapsed = Date.now() - recordingStartTime;
+        const seconds = Math.floor((elapsed / 1000) % 60);
+        const minutes = Math.floor((elapsed / (1000 * 60)) % 60);
+        const hours = Math.floor(elapsed / (1000 * 60 * 60));
+        
+        let timeStr = 'REC ';
+        if (hours > 0) {
+            timeStr += `${hours.toString().padStart(2, '0')}:`;
+        }
+        timeStr += `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        const timeEl = document.getElementById('recording-time');
+        if (timeEl) {
+            timeEl.textContent = timeStr;
+        }
+    }, 1000);
+}
+
+function stopRecordingTimer() {
+    if (recordingTimerInterval) {
+        clearInterval(recordingTimerInterval);
+        recordingTimerInterval = null;
+    }
+}
+
+// Show download modal
+function showDownloadModal() {
+    const modal = document.getElementById('download-recording-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        
+        // Update info text
+        const infoEl = document.getElementById('recording-info');
+        if (infoEl && recordingBlob) {
+            const sizeMB = (recordingBlob.size / (1024 * 1024)).toFixed(2);
+            const duration = formatDuration(Date.now() - recordingStartTime);
+            infoEl.textContent = `Duration: ${duration} | Size: ${sizeMB} MB`;
+        }
+        
+        // Setup download button
+        const downloadBtn = document.getElementById('download-recording-btn');
+        if (downloadBtn) {
+            downloadBtn.onclick = downloadRecording;
+        }
+    }
+}
+
+// Dismiss download modal
+function dismissDownloadModal() {
+    const modal = document.getElementById('download-recording-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    
+    // Clear the blob
+    recordingBlob = null;
+    recordedChunks = [];
+}
+
+// Download the recording
+function downloadRecording() {
+    if (!recordingBlob) {
+        alert('No recording available to download.');
+        return;
+    }
+    
+    // Create download link
+    const url = URL.createObjectURL(recordingBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // Generate filename with timestamp
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const roomId = document.getElementById('current-room-id')?.textContent || 'meeting';
+    const extension = recordingBlob.type.includes('video') ? 'webm' : 'webm';
+    a.download = `${roomId}-${timestamp}.${extension}`;
+    
+    // Trigger download
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    // Cleanup
+    URL.revokeObjectURL(url);
+    
+    // Close modal
+    dismissDownloadModal();
+}
+
+// Format duration
+function formatDuration(ms) {
+    const seconds = Math.floor((ms / 1000) % 60);
+    const minutes = Math.floor((ms / (1000 * 60)) % 60);
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
+// Handle room closed - auto stop recording and prompt download
+const originalRoomClosedHandler = socket._callbacks && socket._callbacks['$room-closed'];
+socket.on('room-closed', ({ reason }) => {
+    // If recording, stop it and show download prompt
+    if (isRecording) {
+        console.log('Room closed while recording, stopping recording...');
+        stopRecording();
+    }
+    
+    // The original handler will reload the page after alert
+    // We need to show download modal before that
+    if (recordingBlob) {
+        showDownloadModal();
+        // Don't auto-reload, let user download first
+        return;
+    }
+    
+    // If no recording, proceed with normal behavior
+    alert(`Meeting ended: ${reason}`);
+    window.location.reload();
+});
+
+// Make functions globally accessible
+window.toggleRecording = toggleRecording;
+window.dismissDownloadModal = dismissDownloadModal;
+window.downloadRecording = downloadRecording;
