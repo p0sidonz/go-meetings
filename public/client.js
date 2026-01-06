@@ -1039,7 +1039,19 @@ async function consumeAudio(producerId, peerId) {
             audio.muted = translatedVoiceOnly;
             document.body.appendChild(audio);
             
-            console.log(`Audio element created for peer ${peerId}, muted: ${audio.muted}`);
+            // Explicitly try to play (handles autoplay policy)
+            try {
+                await audio.play();
+                console.log(`Audio playing for peer ${peerId}, muted: ${audio.muted}`);
+            } catch (playError) {
+                console.warn(`Autoplay blocked for peer ${peerId}, will play on user interaction:`, playError.name);
+                // Add one-time click handler to start audio
+                const startAudio = () => {
+                    audio.play().catch(e => console.error('Audio play failed:', e));
+                    document.removeEventListener('click', startAudio);
+                };
+                document.addEventListener('click', startAudio, { once: true });
+            }
             
             // Resume if needed (server sends paused: true)
             socket.emit('resume', { consumerId: consumer.id }, () => {
