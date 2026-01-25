@@ -219,6 +219,7 @@ socket.on('subtitle', async (data) => {
     let displayText = data.text;
     let langLabel = data.lang;
     let wasTranslated = false;
+    let ttsAudio = null;  // Server TTS audio (base64)
 
     // Only translate if this is from the HOST
     if (data.isHost) {
@@ -235,8 +236,10 @@ socket.on('subtitle', async (data) => {
                 socket.emit('translation-status', { status: 'translating' });
                 
                 try {
-                    // Translate text using ML service
-                    displayText = await translateText(data.text, sourceLang, myLang);
+                    // Use combined translate + TTS endpoint (Supertonic TTS)
+                    const result = await translateAndSpeak(data.text, sourceLang, myLang);
+                    displayText = result.translatedText;
+                    ttsAudio = result.audio;  // May be null if TTS not available for this lang
                     langLabel = `${sourceLang}→${myLang}`;
                     wasTranslated = true;
                 } catch (e) {
@@ -244,8 +247,8 @@ socket.on('subtitle', async (data) => {
                 }
             }
             
-            // Use browser-native TTS to speak the translated/original text
-            speakTextWithFeedback(displayText, myLangFull, wasTranslated);
+            // TTS for host speech - use server audio if available, else browser TTS
+            speakTextWithFeedback(displayText, myLangFull, wasTranslated, ttsAudio);
         } else {
             // Not in translation mode, reset after brief speaking indicator
             clearTimeout(hostSpeakingTimeout);
@@ -324,8 +327,8 @@ function speakText(text, langCode) {
 }
 
 // Enhanced speakText with feedback to server and visual indicator
-// Uses browser-native Web Speech API for TTS
-async function speakTextWithFeedback(text, langCode, wasTranslated) {
+// Uses Supertonic TTS from server, falls back to browser TTS
+async function speakTextWithFeedback(text, langCode, wasTranslated, base64Audio = null) {
     // Pause speech recognition while TTS is playing
     if (recognition && isMicOn) {
         recognition.stop();
@@ -341,15 +344,29 @@ async function speakTextWithFeedback(text, langCode, wasTranslated) {
         socket.emit('translation-status', { status: 'playing' });
     }
     
-    console.log('Browser TTS starting for:', text.substring(0, 50) + '...');
+    console.log('TTS starting, server audio available:', !!base64Audio);
     
     try {
-        // Use browser-native Web Speech API
-        await speakWithBrowserTTS(text, langCode);
+        if (base64Audio) {
+            // Use Supertonic TTS audio from server
+            await playBase64Audio(base64Audio);
+        } else {
+            // Fallback to browser Web Speech API
+            await speakWithBrowserTTS(text, langCode);
+        }
     } catch (err) {
-        console.error('Browser TTS error:', err);
+        console.error('TTS playback error:', err);
+        // Try browser fallback if server TTS fails
+        if (base64Audio) {
+            try {
+                console.log('Falling back to browser TTS...');
+                await speakWithBrowserTTS(text, langCode);
+            } catch (e) {
+                console.error('Browser TTS fallback also failed:', e);
+            }
+        }
     } finally {
-        console.log('Browser TTS ended');
+        console.log('TTS ended');
         window.isSpeaking = false;
         
         // Resume speech recognition
@@ -456,7 +473,7 @@ function updateHostFeedbackPanel(data) {
 }
 
 // ML Service configuration (for translation only, TTS uses browser-native Web Speech API)
-const ML_SERVICE_URL = window.ML_SERVICE_URL || 'https://ml-service.iankit.me';
+const ML_SERVICE_URL = window.ML_SERVICE_URL || 'http://localhost:5001';
 
 async function translateText(text, source, target) {
     // Using self-hosted NLLB-200 translation via ML service
@@ -486,6 +503,67 @@ async function translateText(text, source, target) {
         // Fallback to original text if ML service is unavailable
         return text;
     }
+}
+
+// Translate text and get TTS audio in one request (Supertonic TTS)
+async function translateAndSpeak(text, source, target) {
+    const url = `${ML_SERVICE_URL}/translate-and-speak`;
+    
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text,
+                source: source,
+                target: target
+            })
+        });
+        
+        const data = await res.json();
+        return {
+            translatedText: data.translatedText || text,
+            audio: data.audio  // Base64 WAV audio (null if TTS not available for this language)
+        };
+    } catch (err) {
+        console.error('Translate-and-speak error:', err);
+        return { translatedText: text, audio: null };
+    }
+}
+
+// Play audio from base64-encoded WAV data
+function playBase64Audio(base64Audio) {
+    return new Promise((resolve, reject) => {
+        try {
+            // Decode base64 to binary
+            const binaryString = atob(base64Audio);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            // Create blob and audio element
+            const blob = new Blob([bytes], { type: 'audio/wav' });
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            
+            audio.onended = () => {
+                URL.revokeObjectURL(audioUrl);
+                resolve();
+            };
+            
+            audio.onerror = (e) => {
+                URL.revokeObjectURL(audioUrl);
+                reject(e);
+            };
+            
+            audio.play().catch(reject);
+        } catch (err) {
+            reject(err);
+        }
+    });
 }
 
 micBtn.addEventListener('click', toggleMic);

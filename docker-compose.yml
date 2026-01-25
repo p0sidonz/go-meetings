@@ -12,4 +12,4 @@ services:
       - NODE_ENV=production
       - ANNOUNCED_IP=77.42.73.95
       # ML Service is deployed separately
-      # - ML_SERVICE_URL=https://ml-service.iankit.me
+      # - ML_SERVICE_URL=http://localhost:5001

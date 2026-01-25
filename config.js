@@ -6,7 +6,7 @@ module.exports = {
 
   // ML Translation Service (NLLB + Piper TTS)
   mlService: {
-    url: process.env.ML_SERVICE_URL || "https://ml-service.iankit.me",
+    url: process.env.ML_SERVICE_URL || "http://localhost:5001",
     enabled: process.env.ML_SERVICE_ENABLED !== "false",
   },
 
