@@ -310,21 +310,21 @@ const ApiService = {
     },
 
     /**
-     * Get meeting by ID
-     * @param {number} id
+     * Get meeting by slug
+     * @param {string} slug
      * @returns {Promise<object>}
      */
-    async getMeeting(id) {
-        return await this._request(`/meetings/meets/${id}/`);
+    async getMeeting(slug) {
+        return await this._request(`/meetings/meets/${slug}/`);
     },
 
     /**
      * Update meeting
-     * @param {number} id
+     * @param {string} slug
      * @param {object} data - Fields to update
      */
-    async updateMeeting(id, data) {
-        return await this._request(`/meetings/meets/${id}/`, {
+    async updateMeeting(slug, data) {
+        return await this._request(`/meetings/meets/${slug}/`, {
             method: 'PATCH',
             body: JSON.stringify(data)
         });
@@ -332,10 +332,10 @@ const ApiService = {
 
     /**
      * Delete meeting
-     * @param {number} id
+     * @param {string} slug
      */
-    async deleteMeeting(id) {
-        return await this._request(`/meetings/meets/${id}/`, {
+    async deleteMeeting(slug) {
+        return await this._request(`/meetings/meets/${slug}/`, {
             method: 'DELETE'
         });
     },
@@ -346,21 +346,21 @@ const ApiService = {
 
     /**
      * Get participants for a meeting
-     * @param {number} meetingId
+     * @param {string} slug
      * @returns {Promise<array>} List of participants
      */
-    async getParticipants(meetingId) {
-        return await this._request(`/meetings/meets/${meetingId}/list_participants/`);
+    async getParticipants(slug) {
+        return await this._request(`/meetings/meets/${slug}/participants/`);
     },
 
     /**
      * Add participant to a meeting
-     * @param {number} meetingId
+     * @param {string} slug
      * @param {number} userId - User ID to add
      * @returns {Promise<object>} Created participant
      */
-    async addParticipant(meetingId, userId) {
-        return await this._request(`/meetings/meets/${meetingId}/add_participants/`, {
+    async addParticipant(slug, userId) {
+        return await this._request(`/meetings/meets/${slug}/add_participant/`, {
             method: 'POST',
             body: JSON.stringify({ user: userId })
         });
@@ -377,6 +377,14 @@ const ApiService = {
     },
 
     /**
+     * Get single participant details
+     * @param {number} participantId
+     */
+    async getParticipant(participantId) {
+        return await this._request(`/meetings/participants/${participantId}/`);
+    },
+
+    /**
      * Update participant acceptance status
      * @param {number} participantId
      * @param {boolean} accepted - true = attending, false = not attending
@@ -386,6 +394,15 @@ const ApiService = {
             method: 'POST',
             body: JSON.stringify({ accepted })
         });
+    },
+
+    /**
+     * Get my participations (invitations)
+     * @param {object} params - Query params (accepted=true/false/null)
+     */
+    async getMyParticipations(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        return await this._request(`/meetings/participants/?${query}`);
     },
 
     /**

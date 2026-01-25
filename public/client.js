@@ -219,7 +219,6 @@ socket.on('subtitle', async (data) => {
     let displayText = data.text;
     let langLabel = data.lang;
     let wasTranslated = false;
-    let ttsAudio = null;
 
     // Only translate if this is from the HOST
     if (data.isHost) {
@@ -236,10 +235,8 @@ socket.on('subtitle', async (data) => {
                 socket.emit('translation-status', { status: 'translating' });
                 
                 try {
-                    // Use combined translate + TTS endpoint for efficiency
-                    const result = await translateAndSpeak(data.text, sourceLang, myLang);
-                    displayText = result.translatedText;
-                    ttsAudio = result.audio;
+                    // Translate text using ML service
+                    displayText = await translateText(data.text, sourceLang, myLang);
                     langLabel = `${sourceLang}→${myLang}`;
                     wasTranslated = true;
                 } catch (e) {
@@ -247,9 +244,8 @@ socket.on('subtitle', async (data) => {
                 }
             }
             
-            // TTS for host speech (only when translate mode is active)
-            // Pass server TTS audio if available
-            speakTextWithFeedback(displayText, myLangFull, wasTranslated, ttsAudio);
+            // Use browser-native TTS to speak the translated/original text
+            speakTextWithFeedback(displayText, myLangFull, wasTranslated);
         } else {
             // Not in translation mode, reset after brief speaking indicator
             clearTimeout(hostSpeakingTimeout);
@@ -328,8 +324,8 @@ function speakText(text, langCode) {
 }
 
 // Enhanced speakText with feedback to server and visual indicator
-// Now supports server-side Piper TTS via base64 audio
-async function speakTextWithFeedback(text, langCode, wasTranslated, base64Audio = null) {
+// Uses browser-native Web Speech API for TTS
+async function speakTextWithFeedback(text, langCode, wasTranslated) {
     // Pause speech recognition while TTS is playing
     if (recognition && isMicOn) {
         recognition.stop();
@@ -345,28 +341,15 @@ async function speakTextWithFeedback(text, langCode, wasTranslated, base64Audio 
         socket.emit('translation-status', { status: 'playing' });
     }
     
-    console.log('TTS with feedback starting, using server TTS:', !!base64Audio);
+    console.log('Browser TTS starting for:', text.substring(0, 50) + '...');
     
     try {
-        if (base64Audio && useServerTTS) {
-            // Use server-side Piper TTS audio
-            await playBase64Audio(base64Audio);
-        } else {
-            // Fallback to browser SpeechSynthesis
-            await speakWithBrowserTTS(text, langCode);
-        }
+        // Use browser-native Web Speech API
+        await speakWithBrowserTTS(text, langCode);
     } catch (err) {
-        console.error('TTS playback error:', err);
-        // Try browser fallback if server TTS fails
-        if (base64Audio) {
-            try {
-                await speakWithBrowserTTS(text, langCode);
-            } catch (e) {
-                console.error('Browser TTS fallback also failed:', e);
-            }
-        }
+        console.error('Browser TTS error:', err);
     } finally {
-        console.log('TTS with feedback ended');
+        console.log('Browser TTS ended');
         window.isSpeaking = false;
         
         // Resume speech recognition
@@ -472,9 +455,8 @@ function updateHostFeedbackPanel(data) {
     }
 }
 
-// ML Service configuration
+// ML Service configuration (for translation only, TTS uses browser-native Web Speech API)
 const ML_SERVICE_URL = window.ML_SERVICE_URL || 'https://ml-service.iankit.me';
-let useServerTTS = true; // Use Piper TTS from ML service
 
 async function translateText(text, source, target) {
     // Using self-hosted NLLB-200 translation via ML service
@@ -504,67 +486,6 @@ async function translateText(text, source, target) {
         // Fallback to original text if ML service is unavailable
         return text;
     }
-}
-
-// Translate text and get TTS audio in one request (more efficient)
-async function translateAndSpeak(text, source, target) {
-    const url = `${ML_SERVICE_URL}/translate-and-speak`;
-    
-    try {
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                text: text,
-                source: source,
-                target: target
-            })
-        });
-        
-        const data = await res.json();
-        return {
-            translatedText: data.translatedText || text,
-            audio: data.audio // Base64 encoded WAV audio (null if TTS unavailable)
-        };
-    } catch (err) {
-        console.error('Translate-and-speak error:', err);
-        return { translatedText: text, audio: null };
-    }
-}
-
-// Play audio from base64-encoded WAV data
-function playBase64Audio(base64Audio) {
-    return new Promise((resolve, reject) => {
-        try {
-            // Decode base64 to binary
-            const binaryString = atob(base64Audio);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            
-            // Create blob and audio element
-            const blob = new Blob([bytes], { type: 'audio/wav' });
-            const audioUrl = URL.createObjectURL(blob);
-            const audio = new Audio(audioUrl);
-            
-            audio.onended = () => {
-                URL.revokeObjectURL(audioUrl);
-                resolve();
-            };
-            
-            audio.onerror = (e) => {
-                URL.revokeObjectURL(audioUrl);
-                reject(e);
-            };
-            
-            audio.play().catch(reject);
-        } catch (err) {
-            reject(err);
-        }
-    });
 }
 
 micBtn.addEventListener('click', toggleMic);

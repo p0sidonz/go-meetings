@@ -2126,6 +2126,10 @@
                 <div id="user-fullname" style="font-weight: 500; color: #fff;"></div>
                 <div id="user-username" style="font-size: 12px; color: #9aa0a6;"></div>
               </div>
+              <button id="dashboard-btn" onclick="openAccountModal()" style="padding: 6px 12px; border: none; background: rgba(138, 180, 248, 0.2); color: #8ab4f8; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; margin-right: 8px; display: flex; align-items: center; gap: 6px;">
+                <span class="material-icons" style="font-size: 16px;">dashboard</span>
+                Dashboard
+              </button>
               <button id="settings-btn" onclick="toggleSettingsModal()" style="padding: 6px 8px; border: none; background: rgba(255,255,255,0.1); color: #9aa0a6; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 4px;" title="Settings">
                 <span class="material-icons" style="font-size: 18px; vertical-align: middle;">settings</span>
               </button>
@@ -2232,40 +2236,76 @@
             </p>
           </div>
         </div>
-        
-        <!-- Right: My Meetings Panel (shown when authenticated) -->
-        <div id="my-meetings-section" class="hidden login-card" style="flex: 1; max-width: 380px; min-width: 300px;">
-          <!-- Header with gradient accent -->
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%); display: flex; align-items: center; justify-content: center;">
-                <span class="material-icons" style="font-size: 20px; color: #8ab4f8;">event</span>
+
+        <!-- My Account / Dashboard Modal -->
+        <div id="account-modal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+          <div class="login-card" style="max-width: 520px; position: relative; max-height: 90vh; overflow-y: auto; padding: 0;">
+            <!-- Modal Header -->
+            <div style="padding: 20px 24px 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <button onclick="closeAccountModal()" style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: #9aa0a6; cursor: pointer; font-size: 20px;">&times;</button>
+              <h2 style="color: #fff; margin: 0 0 4px; font-size: 1.3rem; display: flex; align-items: center; gap: 10px;">
+                <span class="material-icons" style="color: #8ab4f8;">dashboard</span>
+                My Dashboard
+              </h2>
+              <p style="color: #9aa0a6; margin: 0; font-size: 13px;">Manage your meetings and invitations</p>
+            </div>
+            
+            <!-- Modal Tabs -->
+            <div style="display: flex; gap: 0; margin: 0; background: rgba(255,255,255,0.03); padding: 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <button onclick="switchAccountTab('meetings')" id="tab-meetings" class="dashboard-tab active" style="flex: 1; padding: 12px 16px; border: none; background: transparent; color: #9aa0a6; cursor: pointer; font-weight: 500; font-size: 13px; border-bottom: 2px solid transparent; transition: all 0.2s;">📅 Upcoming</button>
+              <button onclick="switchAccountTab('invitations')" id="tab-invitations" class="dashboard-tab" style="flex: 1; padding: 12px 16px; border: none; background: transparent; color: #9aa0a6; cursor: pointer; font-weight: 500; font-size: 13px; border-bottom: 2px solid transparent; position: relative; transition: all 0.2s;">
+                ✉️ Invitations
+                <span id="invitations-badge" class="hidden" style="position: absolute; top: 8px; right: calc(50% - 40px); width: 8px; height: 8px; background: #ea4335; border-radius: 50%;"></span>
+              </button>
+            </div>
+            
+            <!-- Modal Content -->
+            <div style="padding: 20px 24px; max-height: 400px; overflow-y: auto;">
+              
+              <!-- Upcoming Meetings Tab -->
+              <div id="content-meetings">
+                <!-- Header with Create Button -->
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                  <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #fff;">Scheduled Meetings</h3>
+                  <button onclick="openCreateMeetingModal()" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500;">
+                    <span class="material-icons" style="font-size: 14px;">add</span>
+                    New Meeting
+                  </button>
+                </div>
+
+                <div id="meetings-list" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Loaded via JS -->
+                  <div style="text-align: center; padding: 24px; color: #9aa0a6; font-size: 13px;">Loading meetings...</div>
+                </div>
+                
+                <div id="meetings-empty-state" class="hidden" style="text-align: center; padding: 32px 16px;">
+                  <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                    <span class="material-icons" style="font-size: 24px; color: #5f6368;">event_busy</span>
+                  </div>
+                  <p style="color: #9aa0a6; font-size: 14px; margin: 0 0 8px;">No upcoming meetings</p>
+                  <button onclick="openCreateMeetingModal()" style="background: none; border: none; color: #8ab4f8; cursor: pointer; font-size: 13px; font-weight: 500;">Schedule your first meeting</button>
+                </div>
               </div>
-              <div>
-                <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #fff; letter-spacing: -0.3px;">My Meetings</h3>
-                <p id="meetings-count" style="margin: 0; font-size: 11px; color: #9aa0a6;">Loading...</p>
+
+              <!-- Invitations Tab -->
+              <div id="content-invitations" class="hidden">
+                <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600; color: #fff;">Pending Invitations</h3>
+                 
+                <div id="invitations-list" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Loaded via JS -->
+                </div>
+                 
+                <div id="invitations-empty-state" class="hidden" style="text-align: center; padding: 32px 16px;">
+                  <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                    <span class="material-icons" style="font-size: 24px; color: #5f6368;">mail_outline</span>
+                  </div>
+                  <p style="color: #9aa0a6; font-size: 14px; margin: 0;">No pending invitations</p>
+                </div>
               </div>
             </div>
-            <button id="create-meeting-btn" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-              <span class="material-icons" style="font-size: 16px;">add</span>
-              Create
-            </button>
-          </div>
-          
-          <!-- Meetings list with styled container -->
-          <div id="meetings-list" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
-            <!-- Meetings loaded dynamically -->
-          </div>
-          
-          <!-- Empty state (shown when no meetings) -->
-          <div id="meetings-empty-state" class="hidden" style="text-align: center; padding: 32px 16px;">
-            <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-              <span class="material-icons" style="font-size: 28px; color: #5f6368;">calendar_today</span>
-            </div>
-            <p style="color: #9aa0a6; font-size: 14px; margin: 0 0 8px;">No meetings yet</p>
-            <p style="color: #5f6368; font-size: 12px; margin: 0;">Click "Create" to schedule your first meeting</p>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -2824,9 +2864,6 @@
           usernameInput.value = user.fullname || user.username;
         }
 
-        // Show meetings section
-        document.getElementById('my-meetings-section').classList.remove('hidden');
-
         // Show Join tab, hide login/register tabs for authenticated users
         const joinTab = document.getElementById('join-tab-btn');
         if (joinTab) joinTab.style.display = '';
@@ -2845,7 +2882,7 @@
       function updateUIForUnauthenticatedUser() {
         // Hide user info
         document.getElementById('user-info-header').classList.add('hidden');
-        document.getElementById('my-meetings-section').classList.add('hidden');
+        // document.getElementById('my-meetings-section').classList.add('hidden');
 
         // Clear username
         const usernameInput = document.getElementById('username');
@@ -3247,6 +3284,44 @@
         }
       });
 
+      function switchAccountTab(tabName) {
+        // Update tabs - only meetings and invitations now
+        ['meetings', 'invitations'].forEach(t => {
+            const btn = document.getElementById(`tab-${t}`);
+            const content = document.getElementById(`content-${t}`);
+            
+            if (t === tabName) {
+                btn.classList.add('active');
+                btn.style.color = '#fff';
+                btn.style.borderBottomColor = '#8ab4f8';
+                btn.style.background = 'rgba(255,255,255,0.05)';
+                content.classList.remove('hidden');
+            } else {
+                btn.classList.remove('active');
+                btn.style.color = '#9aa0a6';
+                btn.style.borderBottomColor = 'transparent';
+                btn.style.background = 'transparent';
+                content.classList.add('hidden');
+            }
+        });
+      }
+
+      function openAccountModal() {
+        if (!window.ApiService.isAuthenticated()) return;
+        
+        const modal = document.getElementById('account-modal');
+        modal.classList.remove('hidden');
+        
+        // Default to meetings
+        switchAccountTab('meetings');
+        loadUserMeetings();
+        loadInvitations();
+      }
+
+      function closeAccountModal() {
+        document.getElementById('account-modal').classList.add('hidden');
+      }
+
       // ============================================
       // Meetings Management
       // ============================================
@@ -3258,86 +3333,218 @@
         if (!window.ApiService.isAuthenticated()) return;
 
         const listEl = document.getElementById('meetings-list');
-        const countEl = document.getElementById('meetings-count');
         const emptyEl = document.getElementById('meetings-empty-state');
+        
         if (!listEl) return;
-
-        listEl.innerHTML = '';
-        if (countEl) countEl.textContent = 'Loading...';
-        if (emptyEl) emptyEl.classList.add('hidden');
+        
+        listEl.innerHTML = '<div style="text-align: center; padding: 24px; color: #9aa0a6; font-size: 13px;">Loading...</div>';
 
         try {
-          const response = await window.ApiService.getMeetings({ limit: 20 });
-          const meetings = response.results || [];
+          // 1. Get meetings I own
+          const ownedResponse = await window.ApiService.getMeetings({ limit: 20 });
+          const ownedMeetings = Array.isArray(ownedResponse) ? ownedResponse : (ownedResponse.results || []);
+          
+          // 2. Get meetings I'm accepted in (using getMyParticipations)
+          const acceptedResponse = await window.ApiService.getMyParticipations({ accepted: true });
+          const acceptedParticipations = Array.isArray(acceptedResponse) ? acceptedResponse : (acceptedResponse.results || []);
+          
+          // Merge: Map participations to meeting objects, filter out duplicates if I own them (unlikely but safe)
           const currentUserId = window.ApiService.user?.id;
+          
+          const acceptedMeetings = acceptedParticipations
+            .map(p => p.meet)
+            .filter(m => m.owner.id !== currentUserId); // Avoid showing owned meetings twice if logic overlaps
+            
+          const allUpcoming = [...ownedMeetings, ...acceptedMeetings];
+          
+          // Sort by date desc (or asc for upcoming)
+          allUpcoming.sort((a, b) => new Date(b.start_at) - new Date(a.start_at));
 
-          // Update count
-          if (countEl) {
-            const count = meetings.length;
-            countEl.textContent = count === 0 ? 'No meetings' : `${count} meeting${count !== 1 ? 's' : ''}`;
-          }
-
-          if (meetings.length === 0) {
-            if (emptyEl) emptyEl.classList.remove('hidden');
+          if (allUpcoming.length === 0) {
+            listEl.innerHTML = '';
+            emptyEl.classList.remove('hidden');
             return;
           }
 
+          emptyEl.classList.add('hidden');
           listEl.innerHTML = '';
-          meetings.forEach(meeting => {
+          
+          allUpcoming.forEach(meeting => {
             const item = document.createElement('div');
-            item.className = 'meeting-item';
+            item.style.cssText = 'background: rgba(255,255,255,0.05); padding: 14px 16px; border-radius: 10px; cursor: pointer; transition: background 0.2s; border: 1px solid rgba(255,255,255,0.08);';
+            item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.08)';
+            item.onmouseout = () => item.style.background = 'rgba(255,255,255,0.05)';
             
             const date = new Date(meeting.start_at);
             const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             
             const isOwner = meeting.owner?.id === currentUserId;
-            const ownerBadge = isOwner ? '<span class="meeting-owner-badge">Owner</span>' : '';
             
-            // Time indicator
+            // Time check
             const now = new Date();
             const timeDiff = date - now;
-            let timeIndicator = '';
+            let statusText = '';
+            let statusColor = '';
+            
             if (timeDiff < 0) {
-              timeIndicator = '<span style="color: #f28b82; font-size: 10px; margin-left: 6px;">Past</span>';
-            } else if (timeDiff < 3600000) { // Less than 1 hour
-              timeIndicator = '<span style="color: #81c995; font-size: 10px; margin-left: 6px;">Soon</span>';
+              statusText = 'Past';
+              statusColor = 'color: #9aa0a6; background: rgba(255,255,255,0.1);';
+            } else if (timeDiff < 3600000) {
+              statusText = 'Starting Soon';
+              statusColor = 'color: #81c995; background: rgba(52, 168, 83, 0.2);';
+            } else {
+              statusText = 'Upcoming';
+              statusColor = 'color: #8ab4f8; background: rgba(138, 180, 248, 0.2);';
             }
             
             item.innerHTML = `
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                 <div style="flex: 1; min-width: 0;">
-                  <div class="meeting-item-name" style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${meeting.name}</span>
-                    ${ownerBadge}${timeIndicator}
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${meeting.name}</h4>
+                    <span style="font-size: 10px; padding: 2px 8px; border-radius: 4px; ${statusColor}">${statusText}</span>
                   </div>
-                  <div class="meeting-item-time" style="display: flex; align-items: center; gap: 6px;">
-                    <span class="material-icons" style="font-size: 12px; opacity: 0.6;">schedule</span>
-                    ${dateStr}
+                  <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: #9aa0a6;">
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      <span class="material-icons" style="font-size: 14px;">event</span>
+                      ${dateStr}
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      <span class="material-icons" style="font-size: 14px;">person</span>
+                      By ${isOwner ? 'You' : (meeting.owner?.fullname || meeting.owner?.username)}
+                    </span>
                   </div>
                 </div>
-                ${isOwner ? `<button class="participant-remove" onclick="event.stopPropagation(); openMeetingModal(${meeting.id})" title="Manage meeting"><span class="material-icons" style="font-size: 18px;">settings</span></button>` : ''}
+                
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button onclick="event.stopPropagation(); joinMeetingFromList('${meeting.name}')" style="padding: 8px 12px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500;">
+                    <span class="material-icons" style="font-size: 16px;">videocam</span>
+                    Join
+                  </button>
+                  ${isOwner ? `
+                  <button onclick="event.stopPropagation(); openMeetingModal('${meeting.slug}')" style="padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.1); color: #9aa0a6; border: none; cursor: pointer;" title="Manage">
+                    <span class="material-icons" style="font-size: 16px;">settings</span>
+                  </button>` : ''}
+                </div>
               </div>
             `;
             
+            // Make whole card clickable to join logic or details
             item.onclick = () => joinMeetingFromList(meeting);
             listEl.appendChild(item);
           });
+          
         } catch (error) {
-          listEl.innerHTML = '<div style="color: #f28b82; font-size: 13px; text-align: center; padding: 20px;">Failed to load meetings</div>';
-          if (countEl) countEl.textContent = 'Error';
+          console.error("Error loading meetings", error);
+          listEl.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Failed to load meetings</div>';
         }
       }
 
-      function joinMeetingFromList(meeting) {
-        const roomId = meeting.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `meeting-${meeting.id}`;
+      async function loadInvitations() {
+        if (!window.ApiService.isAuthenticated()) return;
+        
+        const listEl = document.getElementById('invitations-list');
+        const emptyEl = document.getElementById('invitations-empty-state');
+        const badgeEl = document.getElementById('invitations-badge');
+        
+        listEl.innerHTML = '<div style="text-align: center; padding: 24px; color: #9aa0a6; font-size: 13px;">Loading invitations...</div>';
+        
+        try {
+            const response = await window.ApiService.getMyParticipations();
+            const participations = Array.isArray(response) ? response : (response.results || []);
+            
+            // Filter where accepted is not true (pending or declined)
+            const pendingInvites = participations.filter(p => p.accepted !== true);
+            
+            if (pendingInvites.length > 0) {
+                badgeEl.classList.remove('hidden');
+                emptyEl.classList.add('hidden');
+                listEl.innerHTML = '';
+                
+                pendingInvites.forEach(p => {
+                    const meeting = p.meet;
+                    const date = new Date(meeting.start_at);
+                    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    
+                    const el = document.createElement('div');
+                    el.style.cssText = 'background: rgba(255,255,255,0.05); padding: 14px 16px; border-radius: 10px; border-left: 3px solid #f59e0b; border: 1px solid rgba(255,255,255,0.08);';
+                    
+                    el.innerHTML = `
+                      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+                        <div style="flex: 1;">
+                          <h4 style="margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #fff;">${meeting.name}</h4>
+                          <p style="margin: 0 0 8px; font-size: 12px; color: #9aa0a6;">Invited by ${meeting.owner?.fullname || meeting.owner?.username}</p>
+                          <div style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #9aa0a6; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px;">
+                            <span class="material-icons" style="font-size: 12px;">event</span>
+                            ${dateStr}
+                          </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                          <button onclick="respondToInvitation(${p.id}, true)" style="padding: 6px 12px; border-radius: 6px; background: #34a853; color: white; border: none; cursor: pointer; font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                            <span class="material-icons" style="font-size: 14px;">check</span> Accept
+                          </button>
+                          <button onclick="respondToInvitation(${p.id}, false)" style="padding: 6px 12px; border-radius: 6px; background: rgba(234, 67, 53, 0.2); color: #f28b82; border: 1px solid rgba(234, 67, 53, 0.3); cursor: pointer; font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                            <span class="material-icons" style="font-size: 14px;">close</span> Decline
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                    listEl.appendChild(el);
+                });
+            } else {
+                badgeEl.classList.add('hidden');
+                listEl.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+            }
+            
+        } catch (error) {
+             console.error("Error loading invitations", error);
+             listEl.innerHTML = '<div style="text-align: center; padding: 16px; color: #f28b82; font-size: 13px;">Failed to load invitations</div>';
+        }
+      }
+
+      async function respondToInvitation(participantId, isAccepted) {
+        try {
+            await window.ApiService.updateParticipantAcceptance(participantId, isAccepted);
+            // Refresh lists
+            loadInvitations();
+            loadUserMeetings(); 
+            // Also refresh upcoming meetings as accepted one should appear there
+        } catch (error) {
+            alert('Failed to update invitation status');
+        }
+      }
+
+      function joinMeetingFromList(meetingOrName) {
+        const name = typeof meetingOrName === 'string' ? meetingOrName : meetingOrName.name;
+        // Logic to populate join form
+        // ... assuming you want to switch to join tab
+        // Close modal first
+        closeAccountModal();
+        
+        // Populate room ID input (assuming logic matches how slugs/names work)
+        // If we have slug, use that as room ID? Or name? Client usually joins by room ID string.
+        // Let's us slug if available, else name
+        
+        let roomId = '';
+        if (typeof meetingOrName === 'object' && meetingOrName.slug) {
+            roomId = meetingOrName.slug;
+        } else {
+             roomId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        }
+        
         document.getElementById('room-id').value = roomId;
-        switchTab('join');
+        
+        // Scroll to top/hero where join form is? 
+        // Or specific 'app' section.
+        // Usually we might just want to focus the input.
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
       // ============================================
       // Meeting Modal Management
       // ============================================
-      async function openMeetingModal(meetingId) {
+      async function openMeetingModal(slug) {
         currentMeeting = null;
         currentParticipants = [];
         
@@ -3349,7 +3556,7 @@
         
         try {
           // Load meeting details
-          currentMeeting = await window.ApiService.getMeeting(meetingId);
+          currentMeeting = await window.ApiService.getMeeting(slug);
           
           // Populate form
           document.getElementById('meeting-edit-name').value = currentMeeting.name || '';
@@ -3364,7 +3571,7 @@
           }
           
           // Load participants
-          await loadParticipants(meetingId);
+          await loadParticipants(slug);
           
         } catch (error) {
           console.error('Failed to load meeting:', error);
@@ -3417,7 +3624,7 @@
             updateData.start_at = new Date(datetimeValue).toISOString();
           }
           
-          await window.ApiService.updateMeeting(currentMeeting.id, updateData);
+          await window.ApiService.updateMeeting(currentMeeting.slug, updateData);
           
           closeMeetingModal();
           loadUserMeetings();
@@ -3433,12 +3640,12 @@
       // ============================================
       // Participants Management
       // ============================================
-      async function loadParticipants(meetingId) {
+      async function loadParticipants(slug) {
         const listEl = document.getElementById('participant-list');
         listEl.innerHTML = '<div style="color: #9aa0a6; font-size: 13px; text-align: center; padding: 20px;">Loading participants...</div>';
         
         try {
-          const participants = await window.ApiService.getParticipants(meetingId);
+          const participants = await window.ApiService.getParticipants(slug);
           currentParticipants = Array.isArray(participants) ? participants : (participants.results || []);
           
           renderParticipants();
@@ -3603,7 +3810,7 @@
         searchInput.value = '';
         
         try {
-          const participant = await window.ApiService.addParticipant(currentMeeting.id, userId);
+          const participant = await window.ApiService.addParticipant(currentMeeting.slug, userId);
           currentParticipants.push(participant);
           renderParticipants();
         } catch (error) {
@@ -3626,7 +3833,7 @@
         if (!currentMeeting) return;
         
         try {
-          await window.ApiService.deleteMeeting(currentMeeting.id);
+          await window.ApiService.deleteMeeting(currentMeeting.slug);
           cancelDelete();
           closeMeetingModal();
           loadUserMeetings();
@@ -3712,7 +3919,7 @@
           loadUserMeetings();
           
           // Open the modal to manage participants
-          setTimeout(() => openMeetingModal(meeting.id), 300);
+          setTimeout(() => openMeetingModal(meeting.slug), 300);
           
         } catch (error) {
           alert('Failed to create meeting: ' + (error.message || 'Unknown error'));
