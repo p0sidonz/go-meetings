@@ -473,7 +473,7 @@ function updateHostFeedbackPanel(data) {
 }
 
 // ML Service configuration (for translation only, TTS uses browser-native Web Speech API)
-const ML_SERVICE_URL = window.ML_SERVICE_URL || 'http://localhost:5001';
+const ML_SERVICE_URL = window.ML_SERVICE_URL || 'https://ml-service.iankit.me';
 
 async function translateText(text, source, target) {
     // Using self-hosted NLLB-200 translation via ML service
